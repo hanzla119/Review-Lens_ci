@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Send, Bot, User, Sparkles, Loader2 } from "lucide-react";
+import { Bot, Loader2, Send, Sparkles, User } from "lucide-react";
 
 interface Message {
   id: string;
@@ -21,7 +21,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
     {
       id: "1",
       role: "assistant",
-      content: "Hello! I'm your AI shopping assistant. I can help you find products, compare prices, and analyze reviews across multiple platforms. What are you looking for today?",
+      content: "Hello! I can help you discover products, compare prices, and understand review sentiment across multiple e-commerce platforms. What are you shopping for today?",
       timestamp: new Date(),
     },
   ]);
@@ -38,11 +38,11 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   }, [messages]);
 
   const mockResponses = [
-    "Based on my analysis, I found 3 highly-rated laptops under Rs. 150,000 with excellent reviews. The **ASUS VivoBook 15** has 92% positive sentiment and is currently on sale at Daraz for Rs. 124,999.",
-    "I've analyzed 2,847 reviews for the MacBook Pro M3. The sentiment is overwhelmingly positive (85%), with users praising the performance and battery life. However, some users mention the high price point.",
-    "For wireless headphones with great noise cancellation, I recommend the **Sony WH-1000XM5**. It's available on Amazon for Rs. 29,990 with 78% positive reviews. The main complaints are about the ear cushions being warm.",
-    "I found a price drop alert for you! The Samsung Galaxy S24 Ultra has dropped by 15% on Amazon. Current price: Rs. 184,999. This is the lowest price in the last 3 months.",
-    "Comparing the top 3 smartphones in your budget: Galaxy S24 has the best camera (4.8/5), iPhone 15 has the longest battery life, and Pixel 8 offers the best value for AI features.",
+    "Based on the available products, I found 3 highly-rated laptops under PKR 150,000 with strong review sentiment. The ASUS VivoBook 15 is the best value option with 92% positive sentiment.",
+    "I analyzed 2,847 reviews for the MacBook Pro M3. Sentiment is mostly positive at 85%, with users praising performance and battery life. The main concern is the premium price.",
+    "For wireless headphones, the Sony WH-1000XM5 is a strong recommendation. It is listed at PKR 29,990 with 78% positive reviews and consistent praise for noise cancellation.",
+    "Price drop detected: Samsung Galaxy S24 Ultra is down 15% on Amazon. Current price is PKR 184,999, which is the lowest point in the recent price history shown.",
+    "For smartphones, Galaxy S24 is strongest for camera quality, iPhone 15 is strongest for battery consistency, and Pixel 8 offers strong value for AI features.",
   ];
 
   const handleSend = async () => {
@@ -74,7 +74,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   };
 
   const suggestedQueries = [
-    "Find laptops under 150,000",
+    "Find laptops under PKR 150,000",
     "Best wireless headphones",
     "Compare iPhone 15 vs Samsung S24",
     "Price trends for MacBook Pro",
@@ -85,10 +85,10 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
     : "h-[500px]";
 
   return (
-    <Card variant="glass" className={`flex flex-col ${containerClass}`}>
-      <CardHeader className="border-b border-border/30 pb-4">
+    <Card variant="default" className={`flex flex-col overflow-hidden ${containerClass}`}>
+      <CardHeader className="border-b border-border bg-white pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-lg shadow-primary/20">
             <Bot className="w-5 h-5 text-primary-foreground" />
           </div>
           <div>
@@ -99,7 +99,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+      <CardContent className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -107,20 +107,20 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
           >
             <div
               className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                message.role === "user" ? "bg-primary" : "bg-gradient-primary"
+                message.role === "user" ? "bg-primary" : "bg-secondary text-primary"
               }`}
             >
               {message.role === "user" ? (
                 <User className="w-4 h-4 text-primary-foreground" />
               ) : (
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+                <Sparkles className="w-4 h-4" />
               )}
             </div>
             <div
               className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                 message.role === "user"
                   ? "bg-primary text-primary-foreground"
-                  : "glass-card"
+                  : "border border-border bg-white shadow-sm"
               }`}
             >
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -133,10 +133,10 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
 
         {isLoading && (
           <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+            <div className="w-8 h-8 rounded-lg bg-secondary text-primary flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <div className="glass-card rounded-2xl px-4 py-3">
+            <div className="rounded-2xl border border-border bg-white px-4 py-3 shadow-sm">
               <div className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 <span className="text-sm text-muted-foreground">Analyzing...</span>
@@ -149,7 +149,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
       </CardContent>
 
       {messages.length === 1 && (
-        <div className="px-4 pb-4">
+        <div className="bg-white px-4 pb-4">
           <p className="text-xs text-muted-foreground mb-2">Try asking:</p>
           <div className="flex flex-wrap gap-2">
             {suggestedQueries.map((query, index) => (
@@ -167,7 +167,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
         </div>
       )}
 
-      <div className="p-4 border-t border-border/30">
+      <div className="border-t border-border bg-white p-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();

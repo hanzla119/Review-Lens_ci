@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, TrendingDown, ExternalLink } from "lucide-react";
+import { ExternalLink, ShieldCheck, Star, TrendingDown } from "lucide-react";
 import type { Product } from "@/data/mockData";
 
 interface ProductCardProps {
@@ -25,27 +25,29 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
   return (
     <Card 
       variant="interactive" 
-      className="overflow-hidden group"
+      className="group overflow-hidden"
       onClick={onClick}
     >
-      <div className="relative aspect-square overflow-hidden">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={product.image}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
-        <div className="absolute top-3 left-3 flex gap-2">
-          <Badge variant="glass" className="backdrop-blur-xl">
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+          <Badge variant="glass">
             {product.platform}
           </Badge>
           {discount > 0 && (
-            <Badge variant="success" className="flex items-center gap-1">
+            <Badge variant="warning" className="flex items-center gap-1 bg-white text-accent-foreground">
               <TrendingDown className="w-3 h-3" />
               {discount}% OFF
             </Badge>
           )}
         </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute bottom-3 right-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-primary shadow-sm backdrop-blur">
+          Best value
+        </div>
       </div>
 
       <CardHeader className="pb-3">
@@ -59,7 +61,7 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
             <span className="text-xs text-muted-foreground">({product.reviewCount.toLocaleString()})</span>
           </div>
         </div>
-        <CardTitle className="text-base line-clamp-2 group-hover:text-primary transition-colors">
+        <CardTitle className="line-clamp-2 min-h-[2.5rem] text-base leading-5 transition-colors group-hover:text-primary">
           {product.name}
         </CardTitle>
       </CardHeader>
@@ -68,8 +70,11 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         {/* Sentiment Bar */}
         <div className="mb-4">
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>Sentiment Analysis</span>
-            <span>{product.sentiment.positive}% Positive</span>
+            <span className="flex items-center gap-1 font-medium text-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-success" />
+              Review sentiment
+            </span>
+            <span>{product.sentiment.positive}% positive</span>
           </div>
           <div className="h-2 rounded-full overflow-hidden flex bg-secondary">
             <div 
@@ -88,9 +93,9 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         </div>
 
         {/* Price */}
-        <div className="flex items-end justify-between">
+        <div className="flex items-end justify-between gap-4 border-t border-border pt-4">
           <div>
-            <div className="text-2xl font-bold font-display text-foreground">
+            <div className="font-display text-2xl font-bold text-foreground">
               {formatPrice(product.price)}
             </div>
             {product.originalPrice && (
@@ -99,9 +104,9 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
               </div>
             )}
           </div>
-          <Button variant="hero" size="sm">
+          <Button variant="outline" size="sm" className="shrink-0">
             <ExternalLink className="w-4 h-4" />
-            View
+            Details
           </Button>
         </div>
       </CardContent>

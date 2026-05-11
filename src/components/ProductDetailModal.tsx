@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, Star, TrendingUp, MessageSquare, ExternalLink } from "lucide-react";
+import { ExternalLink, MessageSquare, Star, TrendingUp, X } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Product } from "@/data/mockData";
 
@@ -28,20 +27,20 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <Card variant="glass" className="relative z-10 w-full max-w-4xl max-h-[90vh] overflow-y-auto animate-scale-in">
+      <div className="absolute inset-0 bg-foreground/30 backdrop-blur-sm" onClick={onClose} />
+      <Card variant="default" className="relative z-10 w-full max-w-5xl max-h-[90vh] overflow-y-auto animate-scale-in shadow-2xl">
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-4 right-4 z-10"
+          className="absolute right-4 top-4 z-10 bg-white"
           onClick={onClose}
         >
           <X className="w-5 h-5" />
         </Button>
 
-        <CardHeader className="pb-4">
+        <CardHeader className="border-b border-border pb-6">
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="w-full md:w-48 h-48 rounded-xl overflow-hidden flex-shrink-0">
+            <div className="h-56 w-full flex-shrink-0 overflow-hidden rounded-3xl bg-muted md:w-64">
               <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
             </div>
             <div className="flex-1">
@@ -49,7 +48,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                 <Badge variant="default">{product.platform}</Badge>
                 <Badge variant="secondary">{product.category}</Badge>
               </div>
-              <CardTitle className="text-2xl mb-3">{product.name}</CardTitle>
+              <CardTitle className="mb-3 pr-10 text-3xl leading-tight">{product.name}</CardTitle>
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 fill-warning text-warning" />
@@ -58,7 +57,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                 </div>
               </div>
               <div className="flex items-end gap-3">
-                <span className="text-3xl font-bold font-display text-gradient">
+                <span className="font-display text-4xl font-bold text-primary">
                   {formatPrice(product.price)}
                 </span>
                 {product.originalPrice && (
@@ -67,6 +66,10 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                   </span>
                 )}
               </div>
+              <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
+                Review Lens combines this product's scraped listing data, price movement,
+                and customer sentiment so you can compare it before visiting the store.
+              </p>
             </div>
           </div>
         </CardHeader>
@@ -79,15 +82,15 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               Sentiment Analysis
             </h3>
             <div className="grid grid-cols-3 gap-4">
-              <div className="glass-card p-4 rounded-xl text-center">
+              <div className="rounded-2xl bg-success/10 p-4 text-center">
                 <div className="text-3xl font-bold text-success mb-1">{product.sentiment.positive}%</div>
                 <div className="text-sm text-muted-foreground">Positive</div>
               </div>
-              <div className="glass-card p-4 rounded-xl text-center">
+              <div className="rounded-2xl bg-warning/10 p-4 text-center">
                 <div className="text-3xl font-bold text-warning mb-1">{product.sentiment.neutral}%</div>
                 <div className="text-sm text-muted-foreground">Neutral</div>
               </div>
-              <div className="glass-card p-4 rounded-xl text-center">
+              <div className="rounded-2xl bg-destructive/10 p-4 text-center">
                 <div className="text-3xl font-bold text-destructive mb-1">{product.sentiment.negative}%</div>
                 <div className="text-sm text-muted-foreground">Negative</div>
               </div>
@@ -100,7 +103,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               <TrendingUp className="w-5 h-5 text-primary" />
               Price History
             </h3>
-            <div className="glass-card p-4 rounded-xl h-64">
+            <div className="h-64 rounded-3xl border border-border bg-muted/40 p-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={product.priceHistory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -119,6 +122,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                       background: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
                       borderRadius: "8px",
+                      boxShadow: "var(--shadow-card)",
                     }}
                     labelStyle={{ color: "hsl(var(--foreground))" }}
                     formatter={(value: number) => [formatPrice(value), "Price"]}
@@ -144,7 +148,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
             </h3>
             <div className="space-y-3">
               {mockReviews.map((review) => (
-                <div key={review.id} className="glass-card p-4 rounded-xl">
+                <div key={review.id} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{review.author}</span>
                     <div className="flex items-center gap-1">

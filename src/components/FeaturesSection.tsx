@@ -3,14 +3,16 @@ import { features } from "@/data/mockData";
 
 const FeaturesSection = () => {
   return (
-    <section className="py-24 relative">
+    <section className="relative bg-white py-24">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold font-display mb-4">
-            Powerful <span className="text-gradient">Features</span>
+        <div className="mx-auto mb-16 max-w-3xl text-center">
+          <p className="mb-3 text-sm font-bold uppercase tracking-[0.24em] text-primary">Platform capabilities</p>
+          <h2 className="font-display text-4xl font-bold tracking-tight text-foreground md:text-5xl">
+            Built for product discovery, trust, and analytics
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Everything you need to make informed shopping decisions, powered by artificial intelligence.
+          <p className="mt-5 text-lg leading-8 text-muted-foreground">
+            Review Lens combines a familiar e-commerce browsing experience with the
+            intelligence expected from an academic AI and data analytics project.
           </p>
         </div>
 
@@ -23,8 +25,8 @@ const FeaturesSection = () => {
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <CardContent className="p-8">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-primary flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <feature.icon className="w-7 h-7 text-primary-foreground" />
+                <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary text-primary transition-transform duration-300 group-hover:scale-110">
+                  <feature.icon className="h-7 w-7" />
                 </div>
                 <h3 className="text-xl font-semibold font-display mb-3 text-foreground">
                   {feature.title}

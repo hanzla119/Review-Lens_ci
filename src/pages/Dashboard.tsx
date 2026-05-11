@@ -3,7 +3,18 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, SlidersHorizontal, TrendingUp, Star, Package } from "lucide-react";
+import {
+  Bot,
+  MessageSquare,
+  Package,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Star,
+  Store,
+  TrendingDown,
+  X,
+} from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
@@ -25,7 +36,6 @@ const Dashboard = () => {
     return matchesSearch && matchesCategory && matchesPlatform;
   });
 
-  // Analytics data
   const sentimentData = [
     { name: "Positive", value: 78, color: "hsl(var(--success))" },
     { name: "Neutral", value: 14, color: "hsl(var(--warning))" },
@@ -43,34 +53,54 @@ const Dashboard = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-24 pb-12 px-4">
+      <main className="marketplace-surface px-4 pb-12 pt-28">
         <div className="container mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold font-display mb-2">
-              Product <span className="text-gradient">Dashboard</span>
-            </h1>
-            <p className="text-muted-foreground">
-              Explore products, compare prices, and analyze sentiment across platforms
-            </p>
+          <div className="mb-8 overflow-hidden rounded-[2rem] border border-border bg-white p-6 shadow-sm md:p-8">
+            <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <Badge variant="secondary" className="mb-4">Review Lens marketplace dashboard</Badge>
+                <h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">
+                  Compare products with price, rating, and sentiment clarity.
+                </h1>
+                <p className="mt-4 max-w-3xl text-muted-foreground">
+                  Search products gathered from e-commerce platforms, filter by category
+                  and source, inspect customer sentiment, and open detailed price trends.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
+                <div className="rounded-2xl bg-secondary p-4">
+                  <p className="text-sm text-muted-foreground">Platforms</p>
+                  <p className="mt-1 text-2xl font-bold text-primary">5</p>
+                </div>
+                <div className="rounded-2xl bg-accent/15 p-4">
+                  <p className="text-sm text-muted-foreground">Positive sentiment</p>
+                  <p className="mt-1 text-2xl font-bold text-accent-foreground">78%</p>
+                </div>
+                <div className="col-span-2 rounded-2xl border border-border bg-muted/70 p-4">
+                  <p className="text-sm font-semibold">Ask the assistant:</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    "Find me a smartphone under PKR 50,000 with good reviews."
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Stats Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { icon: Package, label: "Total Products", value: "2,847", change: "+12%" },
-              { icon: Star, label: "Avg Rating", value: "4.6", change: "+0.2" },
-              { icon: TrendingUp, label: "Price Drops", value: "156", change: "Today" },
-              { icon: Search, label: "Searches", value: "8.2K", change: "+45%" },
+              { icon: Package, label: "Products indexed", value: "2,847", change: "+12%" },
+              { icon: Star, label: "Average rating", value: "4.6", change: "+0.2" },
+              { icon: TrendingDown, label: "Price drops", value: "156", change: "Today" },
+              { icon: ShieldCheck, label: "Reviews analyzed", value: "5M+", change: "NLP" },
             ].map((stat, index) => (
-              <Card key={index} variant="glass">
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-                    <stat.icon className="w-6 h-6 text-primary-foreground" />
+              <Card key={index} variant="default">
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-primary">
+                    <stat.icon className="h-6 w-6" />
                   </div>
                   <div>
-                    <div className="text-2xl font-bold font-display">{stat.value}</div>
-                    <div className="text-xs text-muted-foreground">{stat.label}</div>
+                    <div className="font-display text-2xl font-bold">{stat.value}</div>
+                    <div className="text-xs font-medium text-muted-foreground">{stat.label}</div>
                     <Badge variant="success" className="text-xs mt-1">{stat.change}</Badge>
                   </div>
                 </CardContent>
@@ -79,11 +109,9 @@ const Dashboard = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-3 space-y-6">
-              {/* Search & Filters */}
-              <Card variant="glass">
-                <CardContent className="p-4">
+              <Card variant="default">
+                <CardContent className="p-5">
                   <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
@@ -94,13 +122,12 @@ const Dashboard = () => {
                         className="pl-10"
                       />
                     </div>
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button variant="outline" className="flex items-center gap-2 bg-white">
                       <SlidersHorizontal className="w-4 h-4" />
-                      Filters
+                      Advanced filters
                     </Button>
                   </div>
 
-                  {/* Category Pills */}
                   <div className="flex flex-wrap gap-2 mt-4">
                     {categories.map((category) => (
                       <Button
@@ -114,7 +141,6 @@ const Dashboard = () => {
                     ))}
                   </div>
 
-                  {/* Platform Pills */}
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Badge
                       variant={selectedPlatform === null ? "default" : "outline"}
@@ -137,7 +163,18 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Products Grid */}
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div>
+                  <h2 className="font-display text-2xl font-bold">Recommended products</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredProducts.length} trusted results from your filters.
+                  </p>
+                </div>
+                <Badge variant="accent" className="w-fit">
+                  Sorted by best insight score
+                </Badge>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard
@@ -149,7 +186,7 @@ const Dashboard = () => {
               </div>
 
               {filteredProducts.length === 0 && (
-                <Card variant="glass" className="p-12 text-center">
+                <Card variant="default" className="p-12 text-center">
                   <Package className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                   <h3 className="text-xl font-semibold mb-2">No products found</h3>
                   <p className="text-muted-foreground">Try adjusting your search or filters</p>
@@ -157,10 +194,29 @@ const Dashboard = () => {
               )}
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Sentiment Overview */}
-              <Card variant="glass">
+              <Card variant="default">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Store className="h-5 w-5 text-primary" />
+                    Market snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {[
+                    ["Top category", "Smartphones"],
+                    ["Most active source", "Amazon"],
+                    ["Best sentiment", "Footwear"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between rounded-2xl bg-muted/70 p-3">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-bold">{value}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card variant="default">
                 <CardHeader>
                   <CardTitle className="text-lg">Overall Sentiment</CardTitle>
                 </CardHeader>
@@ -201,8 +257,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Platform Stats */}
-              <Card variant="glass">
+              <Card variant="default">
                 <CardHeader>
                   <CardTitle className="text-lg">Products by Platform</CardTitle>
                 </CardHeader>
@@ -222,6 +277,7 @@ const Dashboard = () => {
                             background: "hsl(var(--card))",
                             border: "1px solid hsl(var(--border))",
                             borderRadius: "8px",
+                            boxShadow: "var(--shadow-card)",
                           }}
                         />
                         <Bar dataKey="products" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
@@ -231,7 +287,6 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Quick Chat */}
               <div className="hidden lg:block">
                 <ChatInterface />
               </div>
@@ -248,15 +303,31 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Mobile Chat FAB */}
       <Button
         variant="hero"
         size="xl"
-        className="fixed bottom-6 right-6 rounded-full lg:hidden shadow-2xl animate-pulse-glow"
+        className="fixed bottom-6 right-6 rounded-full lg:hidden shadow-2xl"
         onClick={() => setShowChat(!showChat)}
       >
-        <Search className="w-6 h-6" />
+        <MessageSquare className="w-6 h-6" />
       </Button>
+
+      {showChat && (
+        <div className="fixed inset-x-4 bottom-24 z-40 lg:hidden">
+          <Card variant="default" className="overflow-hidden shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border p-3">
+              <div className="flex items-center gap-2 text-sm font-bold">
+                <Bot className="h-4 w-4 text-primary" />
+                AI Shopping Assistant
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setShowChat(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            <ChatInterface />
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
