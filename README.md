@@ -20,11 +20,71 @@ is built as a modern product discovery dashboard with a conversational AI assist
 - Recharts-based sentiment and platform analytics.
 - Product detail modal with price history and sample review sentiment.
 - AI shopping assistant interface for natural-language product discovery.
+- Login, signup, OTP email verification, Google authentication, and persistent auth state.
+
+## Authentication backend
+
+The repository now includes a Node.js/Express authentication API under `server/src`.
+
+Implemented endpoints:
+
+- `POST /api/auth/send-otp`
+- `POST /api/auth/verify-otp`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/google`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
+
+Note: endpoints such as `/api/auth/send-otp` must be called with `POST` from the
+signup form or an API client. Opening that URL directly in the browser sends `GET`,
+so the server returns a method guidance message instead of sending an OTP.
+
+Security features:
+
+- Password hashing with bcrypt.
+- JWT session token returned to the frontend and also stored in an HTTP-only cookie.
+- MongoDB user persistence with unique email protection.
+- OTP hashes stored server-side with expiry and attempt limits.
+- Google ID token verification with Google Identity Services.
+- Auth middleware for protected routes.
+
+## Environment variables
+
+Copy `.env.example` to `.env` and update the values:
+
+```bash
+cp .env.example .env
+```
+
+Important values:
+
+- `MONGODB_URI`
+- `JWT_SECRET`
+- `CLIENT_URL`
+- `GOOGLE_CLIENT_ID`
+- `VITE_GOOGLE_CLIENT_ID`
+- `VITE_API_URL`
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` for real OTP emails
+
+If SMTP values are omitted during development, OTP codes are printed in the backend
+console for local testing only.
 
 ## Local development
 
 ```bash
 npm i
+```
+
+Run the backend API:
+
+```bash
+npm run server:dev
+```
+
+Run the frontend in a separate terminal:
+
+```bash
 npm run dev
 ```
 
