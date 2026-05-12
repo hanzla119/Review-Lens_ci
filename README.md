@@ -36,6 +36,10 @@ Implemented endpoints:
 - `POST /api/auth/logout`
 - `GET /api/auth/me`
 
+Note: endpoints such as `/api/auth/send-otp` must be called with `POST` from the
+signup form or an API client. Opening that URL directly in the browser sends `GET`,
+so the server returns a method guidance message instead of sending an OTP.
+
 Security features:
 
 - Password hashing with bcrypt.
