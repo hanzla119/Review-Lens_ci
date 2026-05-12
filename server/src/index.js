@@ -13,7 +13,14 @@ app.set("trust proxy", 1);
 
 app.use(
   cors({
-    origin: env.clientUrl,
+    origin(origin, callback) {
+      if (!origin || env.clientUrls.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked request from origin: ${origin}`));
+    },
     credentials: true,
   }),
 );

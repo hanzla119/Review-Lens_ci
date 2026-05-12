@@ -61,7 +61,8 @@ Important values:
 
 - `MONGODB_URI`
 - `JWT_SECRET`
-- `CLIENT_URL`
+- `CLIENT_URL` (this Vite project uses `http://localhost:8080` by default)
+- `CLIENT_URLS` for extra allowed frontend origins, comma-separated
 - `GOOGLE_CLIENT_ID`
 - `VITE_GOOGLE_CLIENT_ID`
 - `VITE_API_URL`
@@ -69,6 +70,10 @@ Important values:
 
 If SMTP values are omitted during development, OTP codes are printed in the backend
 console for local testing only.
+
+If the signup page shows `Failed to fetch`, check that the browser URL is included
+in `CLIENT_URL` or `CLIENT_URLS`. The frontend in `vite.config.ts` runs on port
+`8080`, so `CLIENT_URL=http://localhost:8080` is the safest default.
 
 ## Local development
 
