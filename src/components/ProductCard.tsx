@@ -15,9 +15,9 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
     : 0;
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-PK", {
+    return new Intl.NumberFormat(product.currency === "USD" ? "en-US" : "en-PK", {
       style: "currency",
-      currency: "PKR",
+      currency: product.currency || "PKR",
       minimumFractionDigits: 0,
     }).format(price);
   };
@@ -38,6 +38,11 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
           <Badge variant="glass">
             {product.platform}
           </Badge>
+          {product.sourceDataset && (
+            <Badge variant="secondary" className="max-w-[180px] truncate bg-white/90">
+              Dataset
+            </Badge>
+          )}
           {discount > 0 && (
             <Badge variant="warning" className="flex items-center gap-1 bg-white text-accent-foreground">
               <TrendingDown className="w-3 h-3" />
@@ -64,6 +69,9 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         <CardTitle className="line-clamp-2 min-h-[2.5rem] text-base leading-5 transition-colors group-hover:text-primary">
           {product.name}
         </CardTitle>
+        {product.brand && (
+          <p className="text-xs font-medium text-muted-foreground">By {product.brand}</p>
+        )}
       </CardHeader>
 
       <CardContent>

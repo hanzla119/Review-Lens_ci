@@ -5,6 +5,7 @@ export interface Product {
   name: string;
   price: number;
   originalPrice?: number;
+  currency?: string;
   rating: number;
   reviewCount: number;
   sentiment: {
@@ -16,6 +17,19 @@ export interface Product {
   platform: string;
   category: string;
   priceHistory: { date: string; price: number }[];
+  brand?: string;
+  sourceDataset?: string;
+  productUrl?: string;
+  description?: string;
+  specifications?: Record<string, unknown>;
+  reviews?: {
+    author: string;
+    rating: number;
+    text: string;
+    sentiment: string;
+    helpfulVotes?: number;
+    timestamp?: string;
+  }[];
 }
 
 export const mockProducts: Product[] = [

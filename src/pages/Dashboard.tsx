@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,8 @@ import Navbar from "@/components/Navbar";
 import ProductCard from "@/components/ProductCard";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import ChatInterface from "@/components/ChatInterface";
-import { mockProducts, categories, platforms, type Product } from "@/data/mockData";
+import { mockProducts, type Product } from "@/data/mockData";
+import { productsApi } from "@/lib/productsApi";
 
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,26 +29,104 @@ const Dashboard = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [datasetSource, setDatasetSource] = useState("local-demo-products");
+  const [productError, setProductError] = useState("");
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
 
-  const filteredProducts = mockProducts.filter((product) => {
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoadingProducts(true);
+      setProductError("");
+
+      try {
+        const response = await productsApi.list(24);
+        if (response.products.length > 0) {
+          setProducts(response.products);
+          setDatasetSource(response.source);
+          setProductError(response.warning || "");
+        }
+      } catch (error) {
+        setProducts(mockProducts);
+        setDatasetSource("local-demo-products");
+        setProductError(
+          error instanceof Error
+            ? `${error.message} Showing local demo products instead.`
+            : "Unable to load dataset products. Showing local demo products instead.",
+        );
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  const categories = useMemo(
+    () => ["All", ...Array.from(new Set(products.map((product) => product.category).filter(Boolean)))],
+    [products],
+  );
+
+  const platforms = useMemo(
+    () => Array.from(new Set(products.map((product) => product.platform).filter(Boolean))),
+    [products],
+  );
+
+  const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
     const matchesPlatform = !selectedPlatform || product.platform === selectedPlatform;
     return matchesSearch && matchesCategory && matchesPlatform;
   });
 
+  const totals = products.reduce(
+    (acc, product) => {
+      acc.positive += product.sentiment.positive;
+      acc.neutral += product.sentiment.neutral;
+      acc.negative += product.sentiment.negative;
+      acc.rating += product.rating;
+      acc.reviews += product.reviewCount;
+      if (product.originalPrice && product.originalPrice > product.price) acc.priceDrops += 1;
+      return acc;
+    },
+    { positive: 0, neutral: 0, negative: 0, rating: 0, reviews: 0, priceDrops: 0 },
+  );
+
   const sentimentData = [
-    { name: "Positive", value: 78, color: "hsl(var(--success))" },
-    { name: "Neutral", value: 14, color: "hsl(var(--warning))" },
-    { name: "Negative", value: 8, color: "hsl(var(--destructive))" },
+    { name: "Positive", value: Math.round(totals.positive / Math.max(products.length, 1)), color: "hsl(var(--success))" },
+    { name: "Neutral", value: Math.round(totals.neutral / Math.max(products.length, 1)), color: "hsl(var(--warning))" },
+    { name: "Negative", value: Math.round(totals.negative / Math.max(products.length, 1)), color: "hsl(var(--destructive))" },
   ];
 
-  const platformData = [
-    { name: "Amazon", products: 45 },
-    { name: "Daraz", products: 32 },
-    { name: "Shopify", products: 28 },
-    { name: "eBay", products: 18 },
-  ];
+  const platformData = platforms.map((platform) => ({
+    name: platform,
+    products: products.filter((product) => product.platform === platform).length,
+  }));
+
+  const topCategory =
+    categories
+      .filter((category) => category !== "All")
+      .map((category) => ({
+        category,
+        count: products.filter((product) => product.category === category).length,
+      }))
+      .sort((a, b) => b.count - a.count)[0]?.category || "Electronics";
+
+  const bestSentimentCategory =
+    categories
+      .filter((category) => category !== "All")
+      .map((category) => {
+        const categoryProducts = products.filter((product) => product.category === category);
+        return {
+          category,
+          score:
+            categoryProducts.reduce((sum, product) => sum + product.sentiment.positive, 0) /
+            Math.max(categoryProducts.length, 1),
+        };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.category || "Electronics";
+
+  const averageRating = products.length ? (totals.rating / products.length).toFixed(1) : "0.0";
 
   return (
     <div className="min-h-screen bg-background">
@@ -60,21 +139,25 @@ const Dashboard = () => {
               <div>
                 <Badge variant="secondary" className="mb-4">Review Lens marketplace dashboard</Badge>
                 <h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">
-                  Compare products with price, rating, and sentiment clarity.
+                  Dataset-powered products with price, rating, and sentiment clarity.
                 </h1>
                 <p className="mt-4 max-w-3xl text-muted-foreground">
-                  Search products gathered from e-commerce platforms, filter by category
+                  Search products fetched from public e-commerce datasets, filter by category
                   and source, inspect customer sentiment, and open detailed price trends.
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge variant="default">Source: {datasetSource}</Badge>
+                  <Badge variant="outline">{products.length} products loaded</Badge>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
                 <div className="rounded-2xl bg-secondary p-4">
                   <p className="text-sm text-muted-foreground">Platforms</p>
-                  <p className="mt-1 text-2xl font-bold text-primary">5</p>
+                  <p className="mt-1 text-2xl font-bold text-primary">{platforms.length}</p>
                 </div>
                 <div className="rounded-2xl bg-accent/15 p-4">
                   <p className="text-sm text-muted-foreground">Positive sentiment</p>
-                  <p className="mt-1 text-2xl font-bold text-accent-foreground">78%</p>
+                  <p className="mt-1 text-2xl font-bold text-accent-foreground">{sentimentData[0].value}%</p>
                 </div>
                 <div className="col-span-2 rounded-2xl border border-border bg-muted/70 p-4">
                   <p className="text-sm font-semibold">Ask the assistant:</p>
@@ -88,10 +171,10 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             {[
-              { icon: Package, label: "Products indexed", value: "2,847", change: "+12%" },
-              { icon: Star, label: "Average rating", value: "4.6", change: "+0.2" },
-              { icon: TrendingDown, label: "Price drops", value: "156", change: "Today" },
-              { icon: ShieldCheck, label: "Reviews analyzed", value: "5M+", change: "NLP" },
+              { icon: Package, label: "Dataset products", value: products.length.toLocaleString(), change: datasetSource },
+              { icon: Star, label: "Average rating", value: averageRating, change: "Live" },
+              { icon: TrendingDown, label: "Discounted products", value: totals.priceDrops.toString(), change: "Now" },
+              { icon: ShieldCheck, label: "Reviews analyzed", value: totals.reviews.toLocaleString(), change: "Dataset" },
             ].map((stat, index) => (
               <Card key={index} variant="default">
                 <CardContent className="flex items-center gap-4 p-4">
@@ -101,7 +184,7 @@ const Dashboard = () => {
                   <div>
                     <div className="font-display text-2xl font-bold">{stat.value}</div>
                     <div className="text-xs font-medium text-muted-foreground">{stat.label}</div>
-                    <Badge variant="success" className="text-xs mt-1">{stat.change}</Badge>
+                    <Badge variant="success" className="text-xs mt-1 max-w-[130px] truncate">{stat.change}</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -165,9 +248,9 @@ const Dashboard = () => {
 
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                 <div>
-                  <h2 className="font-display text-2xl font-bold">Recommended products</h2>
+                  <h2 className="font-display text-2xl font-bold">Dataset products</h2>
                   <p className="text-sm text-muted-foreground">
-                    Showing {filteredProducts.length} trusted results from your filters.
+                    Showing {filteredProducts.length} normalized products from public dataset sources.
                   </p>
                 </div>
                 <Badge variant="accent" className="w-fit">
@@ -175,15 +258,39 @@ const Dashboard = () => {
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onClick={() => setSelectedProduct(product)}
-                  />
-                ))}
-              </div>
+              {productError && (
+                <Card variant="default" className="border-warning/30 bg-warning/10">
+                  <CardContent className="p-4 text-sm font-medium text-warning">
+                    {productError}
+                  </CardContent>
+                </Card>
+              )}
+
+              {isLoadingProducts ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Card key={index} variant="default" className="overflow-hidden">
+                      <div className="aspect-[4/3] animate-pulse bg-muted" />
+                      <CardContent className="space-y-3 p-5">
+                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                        <div className="h-5 w-full animate-pulse rounded bg-muted" />
+                        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
+                        <div className="h-10 w-full animate-pulse rounded bg-muted" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onClick={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+              )}
 
               {filteredProducts.length === 0 && (
                 <Card variant="default" className="p-12 text-center">
@@ -204,9 +311,9 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {[
-                    ["Top category", "Smartphones"],
-                    ["Most active source", "Amazon"],
-                    ["Best sentiment", "Footwear"],
+                    ["Top category", topCategory],
+                    ["Most active source", platformData.sort((a, b) => b.products - a.products)[0]?.name || "Amazon"],
+                    ["Best sentiment", bestSentimentCategory],
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between rounded-2xl bg-muted/70 p-3">
                       <span className="text-sm text-muted-foreground">{label}</span>

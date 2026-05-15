@@ -12,14 +12,14 @@ interface ProductDetailModalProps {
 
 const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-PK", {
+    return new Intl.NumberFormat(product.currency === "USD" ? "en-US" : "en-PK", {
       style: "currency",
-      currency: "PKR",
+      currency: product.currency || "PKR",
       minimumFractionDigits: 0,
     }).format(price);
   };
 
-  const mockReviews = [
+  const mockReviews = product.reviews?.length ? product.reviews : [
     { id: 1, author: "Ahmad K.", rating: 5, text: "Excellent product! Worth every penny. The quality exceeded my expectations.", sentiment: "positive" },
     { id: 2, author: "Sara M.", rating: 4, text: "Good product overall, delivery was fast. Minor issues with packaging.", sentiment: "neutral" },
     { id: 3, author: "Hassan R.", rating: 5, text: "Best purchase I've made this year. Highly recommend to everyone!", sentiment: "positive" },
@@ -47,8 +47,10 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               <div className="flex flex-wrap gap-2 mb-3">
                 <Badge variant="default">{product.platform}</Badge>
                 <Badge variant="secondary">{product.category}</Badge>
+                {product.sourceDataset && <Badge variant="outline">{product.sourceDataset}</Badge>}
               </div>
               <CardTitle className="mb-3 pr-10 text-3xl leading-tight">{product.name}</CardTitle>
+              {product.brand && <p className="mb-3 text-sm font-semibold text-primary">Brand / Store: {product.brand}</p>}
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 fill-warning text-warning" />
@@ -67,8 +69,8 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                 )}
               </div>
               <p className="mt-4 max-w-2xl text-sm text-muted-foreground">
-                Review Lens combines this product's scraped listing data, price movement,
-                and customer sentiment so you can compare it before visiting the store.
+                {product.description ||
+                  "Review Lens combines this product's dataset listing data, price movement, and customer sentiment so you can compare it before visiting the store."}
               </p>
             </div>
           </div>
@@ -140,6 +142,22 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
             </div>
           </div>
 
+          {product.specifications && Object.keys(product.specifications).length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold font-display mb-4">Dataset Specifications</h3>
+              <div className="grid gap-3 md:grid-cols-2">
+                {Object.entries(product.specifications).slice(0, 6).map(([key, value]) => (
+                  <div key={key} className="rounded-2xl border border-border bg-muted/40 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">{key.replace(/_/g, " ")}</p>
+                    <p className="mt-1 line-clamp-3 text-sm font-medium">
+                      {Array.isArray(value) ? value.filter(Boolean).slice(0, 3).join(", ") : String(value)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Sample Reviews */}
           <div>
             <h3 className="text-lg font-semibold font-display mb-4 flex items-center gap-2">
@@ -147,8 +165,8 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               Recent Reviews
             </h3>
             <div className="space-y-3">
-              {mockReviews.map((review) => (
-                <div key={review.id} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+              {mockReviews.map((review, index) => (
+                <div key={`${review.author}-${index}`} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium">{review.author}</span>
                     <div className="flex items-center gap-1">
@@ -173,10 +191,19 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
           </div>
 
           <div className="flex gap-4">
-            <Button variant="hero" size="lg" className="flex-1">
-              <ExternalLink className="w-5 h-5 mr-2" />
-              Visit Store
-            </Button>
+            {product.productUrl ? (
+              <Button variant="hero" size="lg" className="flex-1" asChild>
+                <a href={product.productUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="w-5 h-5 mr-2" />
+                  Open Dataset Product
+                </a>
+              </Button>
+            ) : (
+              <Button variant="hero" size="lg" className="flex-1">
+                <ExternalLink className="w-5 h-5 mr-2" />
+                Visit Store
+              </Button>
+            )}
             <Button variant="outline" size="lg" className="flex-1">
               Add to Watchlist
             </Button>

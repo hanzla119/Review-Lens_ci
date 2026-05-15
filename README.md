@@ -29,6 +29,7 @@ The repository now includes a Node.js/Express authentication API under `server/s
 
 Implemented endpoints:
 
+- `GET /api/products`
 - `POST /api/auth/send-otp`
 - `POST /api/auth/verify-otp`
 - `POST /api/auth/signup`
@@ -130,6 +131,17 @@ python scripts/scrapers/south_asia_ecommerce_scraper.py \
 ```
 
 Always check the target website terms of service and robots.txt before scraping.
+
+The dashboard loads product cards from:
+
+```text
+GET /api/products?limit=24
+```
+
+The backend fetches the Hugging Face `gatech-scheller-ai-in-business/amazon-products`
+dataset through the public dataset-server API and normalizes those products into the
+Review Lens product-card schema. If the live dataset API is unavailable, it falls back
+to `data/samples/review_lens_products_sample.json`.
 
 ## Build
 

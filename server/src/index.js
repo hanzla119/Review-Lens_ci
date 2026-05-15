@@ -6,6 +6,7 @@ import { connectDatabase } from "./config/db.js";
 import { env } from "./config/env.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoutes.js";
+import productRoutes from "./routes/productRoutes.js";
 
 const app = express();
 
@@ -42,6 +43,7 @@ app.use(
   }),
   authRoutes,
 );
+app.use("/api/products", productRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
