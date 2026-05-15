@@ -1,7 +1,8 @@
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MessageSquare, Star, TrendingUp, X } from "lucide-react";
+import { CheckCircle2, ExternalLink, MessageSquare, Star, TrendingUp, X } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Product } from "@/data/mockData";
 
@@ -10,7 +11,23 @@ interface ProductDetailModalProps {
   onClose: () => void;
 }
 
+const WATCHLIST_KEY = "review_lens_watchlist";
+
+const readWatchlist = () => {
+  try {
+    return JSON.parse(localStorage.getItem(WATCHLIST_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
 const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
+  const [isWatchlisted, setIsWatchlisted] = useState(false);
+
+  useEffect(() => {
+    setIsWatchlisted(readWatchlist().some((item: { id: string }) => item.id === product.id));
+  }, [product.id]);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat(product.currency === "USD" ? "en-US" : "en-PK", {
       style: "currency",
@@ -24,6 +41,36 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
     { id: 2, author: "Sara M.", rating: 4, text: "Good product overall, delivery was fast. Minor issues with packaging.", sentiment: "neutral" },
     { id: 3, author: "Hassan R.", rating: 5, text: "Best purchase I've made this year. Highly recommend to everyone!", sentiment: "positive" },
   ];
+
+  const handleWatchlist = () => {
+    const currentWatchlist = readWatchlist();
+    const alreadySaved = currentWatchlist.some((item: { id: string }) => item.id === product.id);
+
+    if (alreadySaved) {
+      const updated = currentWatchlist.filter((item: { id: string }) => item.id !== product.id);
+      localStorage.setItem(WATCHLIST_KEY, JSON.stringify(updated));
+      setIsWatchlisted(false);
+      return;
+    }
+
+    const watchlistItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      currency: product.currency || "PKR",
+      image: product.image,
+      platform: product.platform,
+      category: product.category,
+      brand: product.brand,
+      sourceDataset: product.sourceDataset,
+      productUrl: product.productUrl,
+      addedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(WATCHLIST_KEY, JSON.stringify([watchlistItem, ...currentWatchlist]));
+    setIsWatchlisted(true);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -204,8 +251,14 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
                 Visit Store
               </Button>
             )}
-            <Button variant="outline" size="lg" className="flex-1">
-              Add to Watchlist
+            <Button
+              variant={isWatchlisted ? "secondary" : "outline"}
+              size="lg"
+              className="flex-1"
+              onClick={handleWatchlist}
+            >
+              {isWatchlisted && <CheckCircle2 className="mr-2 h-5 w-5" />}
+              {isWatchlisted ? "Added to Watchlist" : "Add to Watchlist"}
             </Button>
           </div>
         </CardContent>

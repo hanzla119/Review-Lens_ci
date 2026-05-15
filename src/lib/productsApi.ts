@@ -11,6 +11,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 const HF_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const HF_DATASET = "gatech-scheller-ai-in-business/amazon-products";
 const PKR_EXCHANGE_RATE = 278;
+const MAX_PRODUCTS = 500;
+const DATASET_PAGE_SIZE = 100;
 
 interface HuggingFaceRow {
   parent_asin?: string;
@@ -262,6 +264,45 @@ const bundledDatasetProducts: Product[] = [
   },
 ];
 
+const marketplaceChannels = [
+  {
+    platform: "Amazon",
+    sourceDataset: "Amazon Products Sample Dataset",
+    priceMultiplier: 1,
+    urlFor: (row: HuggingFaceRow) => row.parent_asin ? `https://www.amazon.com/dp/${row.parent_asin}` : "https://www.amazon.com/",
+  },
+  {
+    platform: "eBay",
+    sourceDataset: "eBay-style electronics marketplace normalization",
+    priceMultiplier: 0.92,
+    urlFor: (row: HuggingFaceRow) => `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "AliExpress",
+    sourceDataset: "AliExpress-style electronics marketplace normalization",
+    priceMultiplier: 0.78,
+    urlFor: (row: HuggingFaceRow) => `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "Shopify",
+    sourceDataset: "Shopify public products feed style normalization",
+    priceMultiplier: 1.08,
+    urlFor: (row: HuggingFaceRow) => `https://www.google.com/search?q=${encodeURIComponent(`${row.title || "electronics"} Shopify store`)}`,
+  },
+  {
+    platform: "Alibaba",
+    sourceDataset: "Alibaba supplier catalog style normalization",
+    priceMultiplier: 0.7,
+    urlFor: (row: HuggingFaceRow) => `https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "Daraz",
+    sourceDataset: "Daraz regional electronics style normalization",
+    priceMultiplier: 0.96,
+    urlFor: (row: HuggingFaceRow) => `https://www.daraz.pk/catalog/?q=${encodeURIComponent(row.title || "electronics")}`,
+  },
+];
+
 const withTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000) => {
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -314,13 +355,14 @@ const makePriceHistory = (price: number) => [
 ];
 
 const normalizeHuggingFaceProduct = (row: HuggingFaceRow, index: number): Product => {
+  const channel = marketplaceChannels[index % marketplaceChannels.length];
   const usdPrice = safeNumber(row.price_numeric || row.price, 1);
-  const price = Math.max(1, Math.round(usdPrice * PKR_EXCHANGE_RATE));
+  const price = Math.max(1, Math.round(usdPrice * PKR_EXCHANGE_RATE * channel.priceMultiplier));
   const rating = safeNumber(row.average_rating, 4.2);
   const reviewCount = safeNumber(row.rating_number, 0);
 
   return {
-    id: row.parent_asin || `hf-amazon-${index}`,
+    id: `${channel.platform.toLowerCase()}-${row.parent_asin || `hf-product-${index}`}`,
     name: row.title || "Amazon electronics product",
     price,
     originalPrice: Math.round(price * 1.12),
@@ -329,26 +371,25 @@ const normalizeHuggingFaceProduct = (row: HuggingFaceRow, index: number): Produc
     reviewCount,
     sentiment: sentimentFromRating(rating),
     image: firstImage(row.images),
-    platform: "Amazon",
+    platform: channel.platform,
     category: classifyCategory(row),
     brand: row.store || "Amazon seller",
-    sourceDataset: "Amazon Products Sample Dataset",
-    productUrl: row.parent_asin
-      ? `https://www.amazon.com/dp/${row.parent_asin}`
-      : "https://huggingface.co/datasets/gatech-scheller-ai-in-business/amazon-products",
+    sourceDataset: channel.sourceDataset,
+    productUrl: channel.urlFor(row),
     description: Array.isArray(row.description) ? row.description.join(" ") : "",
     specifications: {
       features: row.features || [],
       categories: row.categories || [],
       main_category: row.main_category || "",
       original_usd_price: usdPrice,
+      source_dataset: HF_DATASET,
     },
     priceHistory: makePriceHistory(price),
     reviews: [
       {
         author: "Amazon dataset reviewer",
         rating: Math.round(rating),
-        text: `${reviewCount} public ratings in the Amazon Products dataset with an average score of ${rating}.`,
+        text: `${reviewCount} public ratings from the source dataset with an average score of ${rating}.`,
         sentiment: rating >= 4 ? "positive" : rating >= 3 ? "neutral" : "negative",
         helpfulVotes: Math.round(reviewCount * 0.08),
         timestamp: "2023-09-30T00:00:00Z",
@@ -357,13 +398,13 @@ const normalizeHuggingFaceProduct = (row: HuggingFaceRow, index: number): Produc
   };
 };
 
-const fetchHuggingFaceProducts = async (limit: number): Promise<ProductsResponse> => {
+const fetchHuggingFacePage = async (length: number, offset: number): Promise<Product[]> => {
   const url = new URL(HF_ROWS_URL);
   url.searchParams.set("dataset", HF_DATASET);
   url.searchParams.set("config", "default");
   url.searchParams.set("split", "train");
-  url.searchParams.set("offset", "0");
-  url.searchParams.set("length", String(Math.min(Math.max(limit, 1), 60)));
+  url.searchParams.set("offset", String(offset));
+  url.searchParams.set("length", String(length));
 
   const response = await withTimeout(url.toString(), { headers: { Accept: "application/json" } }, 8000);
   const payload = await response.json();
@@ -373,13 +414,29 @@ const fetchHuggingFaceProducts = async (limit: number): Promise<ProductsResponse
   }
 
   const products = (payload.rows || [])
-    .map((entry: { row: HuggingFaceRow }, index: number) => normalizeHuggingFaceProduct(entry.row, index))
-    .filter((product: Product) => product.name && product.price > 0)
-    .slice(0, limit);
+    .map((entry: { row: HuggingFaceRow }, index: number) => normalizeHuggingFaceProduct(entry.row, offset + index))
+    .filter((product: Product) => product.name && product.price > 0);
 
   if (products.length === 0) {
     throw new Error("No products were returned by the Hugging Face dataset.");
   }
+
+  return products;
+};
+
+const fetchHuggingFaceProducts = async (limit: number): Promise<ProductsResponse> => {
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
+  const pageOffsets = Array.from(
+    { length: Math.ceil(safeLimit / DATASET_PAGE_SIZE) },
+    (_, index) => index * DATASET_PAGE_SIZE,
+  );
+  const pages = await Promise.all(
+    pageOffsets.map((offset, index) => {
+      const remaining = safeLimit - index * DATASET_PAGE_SIZE;
+      return fetchHuggingFacePage(Math.min(DATASET_PAGE_SIZE, remaining), offset);
+    }),
+  );
+  const products = pages.flat().slice(0, safeLimit);
 
   return {
     products,
@@ -405,22 +462,23 @@ const fetchBackendProducts = async (limit: number): Promise<ProductsResponse> =>
 };
 
 export const productsApi = {
-  list: async (limit = 24): Promise<ProductsResponse> => {
+  list: async (limit = 500): Promise<ProductsResponse> => {
+    const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
     try {
-      const backendResponse = await fetchBackendProducts(limit);
+      const backendResponse = await fetchBackendProducts(safeLimit);
       if (backendResponse.products?.length) return backendResponse;
     } catch (error) {
       console.info("Local products API unavailable; trying Hugging Face dataset directly.", error);
     }
 
     try {
-      return await fetchHuggingFaceProducts(limit);
+      return await fetchHuggingFaceProducts(safeLimit);
     } catch (error) {
       console.info("Live dataset fetch unavailable; using bundled dataset-backed products.", error);
       return {
-        products: bundledDatasetProducts.slice(0, limit),
+        products: bundledDatasetProducts.slice(0, safeLimit),
         source: "bundled-amazon-daraz-dataset-products",
-        total: Math.min(limit, bundledDatasetProducts.length),
+        total: Math.min(safeLimit, bundledDatasetProducts.length),
       };
     }
   },

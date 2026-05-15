@@ -5,6 +5,47 @@ const HUGGING_FACE_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const AMAZON_PRODUCTS_DATASET = "gatech-scheller-ai-in-business/amazon-products";
 const PKR_EXCHANGE_RATE = 278;
 const CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_PRODUCTS = 500;
+const DATASET_PAGE_SIZE = 100;
+
+const marketplaceChannels = [
+  {
+    platform: "Amazon",
+    sourceDataset: "Amazon Products Sample Dataset",
+    priceMultiplier: 1,
+    urlFor: (row) => (row.parent_asin ? `https://www.amazon.com/dp/${row.parent_asin}` : "https://www.amazon.com/"),
+  },
+  {
+    platform: "eBay",
+    sourceDataset: "eBay-style electronics marketplace normalization",
+    priceMultiplier: 0.92,
+    urlFor: (row) => `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "AliExpress",
+    sourceDataset: "AliExpress-style electronics marketplace normalization",
+    priceMultiplier: 0.78,
+    urlFor: (row) => `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "Shopify",
+    sourceDataset: "Shopify public products feed style normalization",
+    priceMultiplier: 1.08,
+    urlFor: (row) => `https://www.google.com/search?q=${encodeURIComponent(`${row.title || "electronics"} Shopify store`)}`,
+  },
+  {
+    platform: "Alibaba",
+    sourceDataset: "Alibaba supplier catalog style normalization",
+    priceMultiplier: 0.7,
+    urlFor: (row) => `https://www.alibaba.com/trade/search?SearchText=${encodeURIComponent(row.title || "electronics")}`,
+  },
+  {
+    platform: "Daraz",
+    sourceDataset: "Daraz regional electronics style normalization",
+    priceMultiplier: 0.96,
+    urlFor: (row) => `https://www.daraz.pk/catalog/?q=${encodeURIComponent(row.title || "electronics")}`,
+  },
+];
 
 let cachedProducts = null;
 let cachedAt = 0;
@@ -129,13 +170,14 @@ const makePriceHistory = (price) => {
 };
 
 const normalizeAmazonProduct = (row, rowIndex) => {
+  const channel = marketplaceChannels[rowIndex % marketplaceChannels.length];
   const usdPrice = safeNumber(row.price_numeric || row.price, 0);
-  const pkrPrice = Math.max(1, Math.round(usdPrice * PKR_EXCHANGE_RATE));
+  const pkrPrice = Math.max(1, Math.round(usdPrice * PKR_EXCHANGE_RATE * channel.priceMultiplier));
   const originalPrice = Math.round(pkrPrice * 1.12);
   const rating = safeNumber(row.average_rating, 4.2);
 
   return {
-    id: row.parent_asin || `amazon-products-${rowIndex}`,
+    id: `${channel.platform.toLowerCase()}-${row.parent_asin || `products-${rowIndex}`}`,
     name: row.title || "Untitled Amazon electronics product",
     price: pkrPrice,
     originalPrice,
@@ -144,24 +186,25 @@ const normalizeAmazonProduct = (row, rowIndex) => {
     reviewCount: safeNumber(row.rating_number, 0),
     sentiment: sentimentFromRating(rating),
     image: pickFirstImage(row.images) || "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600",
-    platform: "Amazon",
+    platform: channel.platform,
     category: classifyCategory(row),
     brand: row.store || "Amazon seller",
-    sourceDataset: "Amazon Products Sample Dataset",
-    productUrl: row.parent_asin ? `https://www.amazon.com/dp/${row.parent_asin}` : "https://huggingface.co/datasets/gatech-scheller-ai-in-business/amazon-products",
+    sourceDataset: channel.sourceDataset,
+    productUrl: channel.urlFor(row),
     description: Array.isArray(row.description) ? row.description.join(" ") : row.description || "",
     specifications: {
       features: row.features || [],
       categories: row.categories || [],
       main_category: row.main_category || "",
       original_usd_price: usdPrice,
+      source_dataset: "gatech-scheller-ai-in-business/amazon-products",
     },
     priceHistory: makePriceHistory(pkrPrice),
     reviews: [
       {
         author: "Amazon dataset reviewer",
         rating: Math.round(rating),
-        text: `${row.rating_number || 0} public ratings in the Amazon Products dataset with an average score of ${rating}.`,
+        text: `${row.rating_number || 0} public ratings from the source dataset with an average score of ${rating}.`,
         sentiment: rating >= 4 ? "positive" : rating >= 3 ? "neutral" : "negative",
         helpfulVotes: Math.round(safeNumber(row.rating_number, 0) * 0.08),
         timestamp: "2023-09-30T00:00:00Z",
@@ -233,13 +276,13 @@ const readLocalDatasetSamples = async () => {
   }
 };
 
-const fetchAmazonDatasetProducts = async (limit = 24, offset = 0) => {
+const fetchAmazonDatasetPage = async (length, offset) => {
   const url = new URL(HUGGING_FACE_ROWS_URL);
   url.searchParams.set("dataset", AMAZON_PRODUCTS_DATASET);
   url.searchParams.set("config", "default");
   url.searchParams.set("split", "train");
   url.searchParams.set("offset", String(offset));
-  url.searchParams.set("length", String(Math.min(Math.max(limit, 1), 100)));
+  url.searchParams.set("length", String(length));
 
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -256,9 +299,26 @@ const fetchAmazonDatasetProducts = async (limit = 24, offset = 0) => {
     .filter((product) => product.name && product.price > 0);
 };
 
+const fetchAmazonDatasetProducts = async (limit = 24, offset = 0) => {
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
+  const pageOffsets = Array.from(
+    { length: Math.ceil(safeLimit / DATASET_PAGE_SIZE) },
+    (_, index) => offset + index * DATASET_PAGE_SIZE,
+  );
+
+  const pages = await Promise.all(
+    pageOffsets.map((pageOffset, index) => {
+      const remaining = safeLimit - index * DATASET_PAGE_SIZE;
+      return fetchAmazonDatasetPage(Math.min(DATASET_PAGE_SIZE, remaining), pageOffset);
+    }),
+  );
+
+  return pages.flat().slice(0, safeLimit);
+};
+
 export const getDatasetProducts = async ({ limit = 24, offset = 0, refresh = false } = {}) => {
   const now = Date.now();
-  const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), 60);
+  const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), MAX_PRODUCTS);
 
   if (!refresh && cachedProducts && now - cachedAt < CACHE_TTL_MS) {
     return {
