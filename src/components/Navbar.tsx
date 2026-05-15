@@ -30,9 +30,6 @@ const Navbar = () => {
             <Link to="/chatbot" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-primary">
               AI Assistant
             </Link>
-            <Link to="/datasets" className="text-sm font-semibold text-muted-foreground transition-colors hover:text-primary">
-              Datasets
-            </Link>
           </div>
 
           <div className="flex items-center gap-4">

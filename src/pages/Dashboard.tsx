@@ -44,16 +44,12 @@ const Dashboard = () => {
         if (response.products.length > 0) {
           setProducts(response.products);
           setDatasetSource(response.source);
-          setProductError(response.warning || "");
+          setProductError("");
         }
       } catch (error) {
         setProducts(mockProducts);
         setDatasetSource("local-demo-products");
-        setProductError(
-          error instanceof Error
-            ? `${error.message} Showing local demo products instead.`
-            : "Unable to load dataset products. Showing local demo products instead.",
-        );
+        setProductError("");
       } finally {
         setIsLoadingProducts(false);
       }
