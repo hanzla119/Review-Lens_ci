@@ -40,7 +40,7 @@ const Dashboard = () => {
       setProductError("");
 
       try {
-        const response = await productsApi.list(24);
+        const response = await productsApi.list(500);
         if (response.products.length > 0) {
           setProducts(response.products);
           setDatasetSource(response.source);
