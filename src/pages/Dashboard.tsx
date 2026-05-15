@@ -23,6 +23,58 @@ import ChatInterface from "@/components/ChatInterface";
 import { mockProducts, type Product } from "@/data/mockData";
 import { productsApi } from "@/lib/productsApi";
 
+const ProductGridSkeleton = () => (
+  <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6">
+    {Array.from({ length: 8 }).map((_, index) => (
+      <Card key={index} variant="default" className="h-full overflow-hidden">
+        <div className="aspect-[4/3] animate-pulse bg-muted" />
+        <CardContent className="space-y-4 p-5">
+          <div className="flex justify-between gap-3">
+            <div className="h-6 w-24 animate-pulse rounded-full bg-muted" />
+            <div className="h-6 w-16 animate-pulse rounded-full bg-muted" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-5 w-full animate-pulse rounded bg-muted" />
+            <div className="h-5 w-4/5 animate-pulse rounded bg-muted" />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="h-14 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-14 animate-pulse rounded-2xl bg-muted" />
+            <div className="h-14 animate-pulse rounded-2xl bg-muted" />
+          </div>
+          <div className="flex items-end justify-between border-t border-border pt-4">
+            <div className="space-y-2">
+              <div className="h-7 w-28 animate-pulse rounded bg-muted" />
+              <div className="h-4 w-20 animate-pulse rounded bg-muted" />
+            </div>
+            <div className="h-9 w-24 animate-pulse rounded-full bg-muted" />
+          </div>
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
+
+interface EmptyProductsStateProps {
+  onReset: () => void;
+}
+
+const EmptyProductsState = ({ onReset }: EmptyProductsStateProps) => (
+  <Card variant="default" className="border-dashed p-10 text-center">
+    <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-secondary text-primary">
+      <Package className="h-10 w-10" />
+    </div>
+    <h3 className="font-display text-2xl font-bold">No products found</h3>
+    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+      Your current search and filters did not match any dataset products. Reset filters
+      to return to the full marketplace catalog.
+    </p>
+    <Button variant="hero" className="mt-6" onClick={onReset}>
+      Reset Filters
+    </Button>
+  </Card>
+);
+
 const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -124,13 +176,19 @@ const Dashboard = () => {
 
   const averageRating = products.length ? (totals.rating / products.length).toFixed(1) : "0.0";
 
+  const resetFilters = () => {
+    setSearchQuery("");
+    setSelectedCategory("All");
+    setSelectedPlatform(null);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="marketplace-surface px-4 pb-12 pt-28">
-        <div className="container mx-auto">
-          <div className="mb-8 overflow-hidden rounded-[2rem] border border-border bg-white p-6 shadow-sm md:p-8">
+      <main className="marketplace-surface px-4 pb-12 pt-28 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-[1600px] space-y-8">
+          <section className="overflow-hidden rounded-[2rem] border border-border bg-white p-6 shadow-sm md:p-8">
             <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
                 <Badge variant="secondary" className="mb-4">Review Lens marketplace dashboard</Badge>
@@ -146,7 +204,7 @@ const Dashboard = () => {
                   <Badge variant="outline">{products.length} products loaded</Badge>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:min-w-[360px]">
+              <div className="grid grid-cols-2 gap-3 lg:min-w-[360px]">
                 <div className="rounded-2xl bg-secondary p-4">
                   <p className="text-sm text-muted-foreground">Platforms</p>
                   <p className="mt-1 text-2xl font-bold text-primary">{platforms.length}</p>
@@ -163,16 +221,16 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { icon: Package, label: "Dataset products", value: products.length.toLocaleString(), change: datasetSource },
               { icon: Star, label: "Average rating", value: averageRating, change: "Live" },
               { icon: TrendingDown, label: "Discounted products", value: totals.priceDrops.toString(), change: "Now" },
               { icon: ShieldCheck, label: "Reviews analyzed", value: totals.reviews.toLocaleString(), change: "Dataset" },
             ].map((stat, index) => (
-              <Card key={index} variant="default">
+              <Card key={index} variant="default" className="h-full">
                 <CardContent className="flex items-center gap-4 p-4">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-primary">
                     <stat.icon className="h-6 w-6" />
@@ -185,216 +243,191 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div className="lg:col-span-3 space-y-6">
-              <Card variant="default">
-                <CardContent className="p-5">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                      <Input
-                        placeholder="Search products across all platforms..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
+          <section className="grid gap-4 xl:grid-cols-[1.2fr_0.9fr_0.9fr]">
+            <Card variant="default">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Store className="h-5 w-5 text-primary" />
+                  Market snapshot
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                {[
+                  ["Top category", topCategory],
+                  ["Most active source", platformData.sort((a, b) => b.products - a.products)[0]?.name || "Amazon"],
+                  ["Best sentiment", bestSentimentCategory],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between rounded-2xl bg-muted/70 p-3">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <span className="text-sm font-bold">{value}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card variant="default">
+              <CardHeader>
+                <CardTitle className="text-lg">Overall Sentiment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-56 xl:h-44">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={sentimentData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={42}
+                        outerRadius={72}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {sentimentData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                  {sentimentData.map((item) => (
+                    <div key={item.name} className="rounded-2xl bg-muted/60 p-2 text-center">
+                      <div className="mx-auto mb-1 h-2 w-8 rounded-full" style={{ backgroundColor: item.color }} />
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-muted-foreground">{item.value}%</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card variant="default">
+              <CardHeader>
+                <CardTitle className="text-lg">Products by Platform</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-56 xl:h-48">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={platformData} layout="vertical">
+                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        stroke="hsl(var(--muted-foreground))"
+                        tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                       />
-                    </div>
-                    <Button variant="outline" className="flex items-center gap-2 bg-white">
-                      <SlidersHorizontal className="w-4 h-4" />
-                      Advanced filters
-                    </Button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {categories.map((category) => (
-                      <Button
-                        key={category}
-                        variant={selectedCategory === category ? "hero" : "secondary"}
-                        size="sm"
-                        onClick={() => setSelectedCategory(category)}
-                      >
-                        {category}
-                      </Button>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <Badge
-                      variant={selectedPlatform === null ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedPlatform(null)}
-                    >
-                      All Platforms
-                    </Badge>
-                    {platforms.map((platform) => (
-                      <Badge
-                        key={platform}
-                        variant={selectedPlatform === platform ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => setSelectedPlatform(platform)}
-                      >
-                        {platform}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div>
-                  <h2 className="font-display text-2xl font-bold">Dataset products</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Showing {filteredProducts.length} normalized products from public dataset sources.
-                  </p>
+                      <Tooltip
+                        contentStyle={{
+                          background: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px",
+                          boxShadow: "var(--shadow-card)",
+                        }}
+                      />
+                      <Bar dataKey="products" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
-                <Badge variant="accent" className="w-fit">
-                  Sorted by best insight score
-                </Badge>
-              </div>
+              </CardContent>
+            </Card>
+          </section>
 
-              {productError && (
-                <Card variant="default" className="border-warning/30 bg-warning/10">
-                  <CardContent className="p-4 text-sm font-medium text-warning">
-                    {productError}
-                  </CardContent>
-                </Card>
-              )}
-
-              {isLoadingProducts ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <Card key={index} variant="default" className="overflow-hidden">
-                      <div className="aspect-[4/3] animate-pulse bg-muted" />
-                      <CardContent className="space-y-3 p-5">
-                        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                        <div className="h-5 w-full animate-pulse rounded bg-muted" />
-                        <div className="h-5 w-2/3 animate-pulse rounded bg-muted" />
-                        <div className="h-10 w-full animate-pulse rounded bg-muted" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {filteredProducts.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onClick={() => setSelectedProduct(product)}
+          <section className="space-y-6">
+            <Card variant="default" className="sticky top-24 z-20 border-primary/10 bg-white/95 backdrop-blur">
+              <CardContent className="p-4 sm:p-5">
+                <div className="flex flex-col gap-4 lg:flex-row">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search products across all platforms..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
                     />
+                  </div>
+                  <Button variant="outline" className="flex items-center gap-2 bg-white">
+                    <SlidersHorizontal className="w-4 h-4" />
+                    Advanced filters
+                  </Button>
+                  <Button variant="ghost" onClick={resetFilters}>
+                    Reset
+                  </Button>
+                </div>
+
+                <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                  {categories.map((category) => (
+                    <Button
+                      key={category}
+                      variant={selectedCategory === category ? "hero" : "secondary"}
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setSelectedCategory(category)}
+                    >
+                      {category}
+                    </Button>
                   ))}
                 </div>
-              )}
 
-              {filteredProducts.length === 0 && (
-                <Card variant="default" className="p-12 text-center">
-                  <Package className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">No products found</h3>
-                  <p className="text-muted-foreground">Try adjusting your search or filters</p>
-                </Card>
-              )}
-            </div>
-
-            <div className="space-y-6">
-              <Card variant="default">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Store className="h-5 w-5 text-primary" />
-                    Market snapshot
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    ["Top category", topCategory],
-                    ["Most active source", platformData.sort((a, b) => b.products - a.products)[0]?.name || "Amazon"],
-                    ["Best sentiment", bestSentimentCategory],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between rounded-2xl bg-muted/70 p-3">
-                      <span className="text-sm text-muted-foreground">{label}</span>
-                      <span className="text-sm font-bold">{value}</span>
-                    </div>
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  <Badge
+                    variant={selectedPlatform === null ? "default" : "outline"}
+                    className="shrink-0 cursor-pointer"
+                    onClick={() => setSelectedPlatform(null)}
+                  >
+                    All Platforms
+                  </Badge>
+                  {platforms.map((platform) => (
+                    <Badge
+                      key={platform}
+                      variant={selectedPlatform === platform ? "default" : "outline"}
+                      className="shrink-0 cursor-pointer"
+                      onClick={() => setSelectedPlatform(platform)}
+                    >
+                      {platform}
+                    </Badge>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              <Card variant="default">
-                <CardHeader>
-                  <CardTitle className="text-lg">Overall Sentiment</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={sentimentData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
-                          paddingAngle={5}
-                          dataKey="value"
-                        >
-                          {sentimentData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div className="space-y-2 mt-4">
-                    {sentimentData.map((item) => (
-                      <div key={item.name} className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: item.color }}
-                          />
-                          <span>{item.name}</span>
-                        </div>
-                        <span className="font-medium">{item.value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card variant="default">
-                <CardHeader>
-                  <CardTitle className="text-lg">Products by Platform</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-48">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={platformData} layout="vertical">
-                        <XAxis type="number" stroke="hsl(var(--muted-foreground))" />
-                        <YAxis
-                          dataKey="name"
-                          type="category"
-                          stroke="hsl(var(--muted-foreground))"
-                          tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            background: "hsl(var(--card))",
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                            boxShadow: "var(--shadow-card)",
-                          }}
-                        />
-                        <Bar dataKey="products" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="hidden lg:block">
-                <ChatInterface />
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div>
+                <h2 className="font-display text-2xl font-bold">Dataset products</h2>
+                <p className="text-sm text-muted-foreground">
+                  Showing {filteredProducts.length} normalized products from public dataset sources.
+                </p>
               </div>
+              <Badge variant="accent" className="w-fit">
+                Sorted by best insight score
+              </Badge>
             </div>
-          </div>
+
+            {productError && (
+              <Card variant="default" className="border-warning/30 bg-warning/10">
+                <CardContent className="p-4 text-sm font-medium text-warning">
+                  {productError}
+                </CardContent>
+              </Card>
+            )}
+
+            {isLoadingProducts ? (
+              <ProductGridSkeleton />
+            ) : filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onClick={() => setSelectedProduct(product)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyProductsState onReset={resetFilters} />
+            )}
+          </section>
         </div>
       </main>
 
