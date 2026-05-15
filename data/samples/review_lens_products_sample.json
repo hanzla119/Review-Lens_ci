@@ -1,0 +1,78 @@
+[
+  {
+    "source_platform": "Amazon",
+    "source_dataset": "McAuley-Lab/Amazon-Reviews-2023",
+    "source_url": "https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023",
+    "product_id": "B0EXAMPLE01",
+    "title": "Wireless Noise Cancelling Headphones",
+    "brand": "Example Audio",
+    "category": "Electronics > Headphones",
+    "description": "Bluetooth headphones with active noise cancellation and long battery life.",
+    "images": ["https://example.com/images/headphones-main.jpg"],
+    "product_url": "https://example.com/product/B0EXAMPLE01",
+    "specifications": {
+      "connectivity": "Bluetooth",
+      "battery_life": "30 hours",
+      "color": "Black"
+    },
+    "pricing": {
+      "current_price": 29990,
+      "original_price": 34990,
+      "discount_percentage": 14.29,
+      "currency": "PKR",
+      "history": [
+        { "date": "2026-01-01", "price": 34990 },
+        { "date": "2026-02-01", "price": 32990 },
+        { "date": "2026-03-01", "price": 29990 }
+      ]
+    },
+    "reviews": [
+      {
+        "reviewer_name": "anonymous_user_001",
+        "rating": 5,
+        "review_text": "Excellent sound quality and battery life.",
+        "timestamp": "2026-03-14T10:15:00Z",
+        "helpful_votes": 12,
+        "sentiment": "positive"
+      }
+    ]
+  },
+  {
+    "source_platform": "Daraz",
+    "source_dataset": "Daraz SmartPhone Web Data Scrape",
+    "source_url": "https://www.kaggle.com/datasets/akibuddinnayan/daraz-smartphone-web-data-scrape/data",
+    "product_id": "DARAZ-DEMO-001",
+    "title": "Android Smartphone 8GB RAM 128GB Storage",
+    "brand": "Example Mobile",
+    "category": "Mobiles & Tablets",
+    "description": "Regional smartphone listing prepared for Review Lens schema validation.",
+    "images": ["https://example.com/images/smartphone-main.jpg"],
+    "product_url": "https://www.daraz.pk/",
+    "specifications": {
+      "ram": "8GB",
+      "storage": "128GB",
+      "display": "6.7 inch"
+    },
+    "pricing": {
+      "current_price": 58999,
+      "original_price": 64999,
+      "discount_percentage": 9.23,
+      "currency": "PKR",
+      "history": [
+        { "date": "2026-01-01", "price": 64999 },
+        { "date": "2026-02-01", "price": 61999 },
+        { "date": "2026-03-01", "price": 58999 }
+      ]
+    },
+    "reviews": [
+      {
+        "reviewer_name": "anonymous_user_002",
+        "rating": 4,
+        "review_text": "Camera is good and delivery was quick.",
+        "timestamp": "2026-03-18T12:45:00Z",
+        "helpful_votes": 5,
+        "sentiment": "positive"
+      }
+    ]
+  }
+]
