@@ -11,7 +11,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api"
 const HF_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const HF_DATASET = "gatech-scheller-ai-in-business/amazon-products";
 const PKR_EXCHANGE_RATE = 278;
-const MAX_PRODUCTS = 500;
+const MAX_PRODUCTS = 10000;
 const DATASET_PAGE_SIZE = 100;
 
 interface HuggingFaceRow {

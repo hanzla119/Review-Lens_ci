@@ -138,10 +138,10 @@ The dashboard loads product cards from:
 GET /api/products?limit=24
 ```
 
-The backend fetches the Hugging Face `gatech-scheller-ai-in-business/amazon-products`
-dataset through the public dataset-server API and normalizes those products into the
-Review Lens product-card schema. If the live dataset API is unavailable, it falls back
-to `data/samples/review_lens_products_sample.json`.
+The backend first loads `data/samples/review_lens_products_sample.json` (local normalized
+catalog), then optionally supplements it from the Hugging Face
+`gatech-scheller-ai-in-business/amazon-products` dataset when pagination moves beyond local
+records. The final API response is normalized into the Review Lens product-card schema.
 
 ## Build
 
