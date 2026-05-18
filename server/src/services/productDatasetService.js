@@ -344,7 +344,7 @@ export const getDatasetProducts = async ({ limit = 24, offset = 0, refresh = fal
 
   const localProducts = await readLocalDatasetSamples();
 
-  if (localProducts.length >= safeOffset + safeLimit) {
+  if (safeOffset < localProducts.length) {
     const { page } = paginateProducts(localProducts, safeOffset, safeLimit);
     cachedProducts = localProducts;
     cachedAt = now;

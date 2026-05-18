@@ -128,6 +128,9 @@ python scripts/scrapers/south_asia_ecommerce_scraper.py \
   --platform goto \
   --url "https://www.goto.com.pk/computing-gaming" \
   --output goto_computing_gaming.csv
+
+# Rebuild normalized dashboard catalog from marketplace datasets (Kaggle + Shopify feeds)
+python3 scripts/datasets/extract_marketplace_products.py --min-products 5000
 ```
 
 Always check the target website terms of service and robots.txt before scraping.
@@ -137,6 +140,10 @@ The dashboard loads product cards from:
 ```text
 GET /api/products?limit=24
 ```
+
+When `data/samples/review_lens_products_sample.json` is rebuilt by
+`scripts/datasets/extract_marketplace_products.py`, those extracted products are loaded
+directly by the backend and shown on the dashboard.
 
 The backend first loads `data/samples/review_lens_products_sample.json` (local normalized
 catalog), then optionally supplements it from the Hugging Face
