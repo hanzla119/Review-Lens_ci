@@ -115,7 +115,7 @@ def parse_urls(value: str | None) -> list[str]:
         except json.JSONDecodeError:
             pass
 
-    urls = re.findall(r"https?://[^\\s,'\"\\]]+", text)
+    urls = re.findall(r"https?://[^\s|]+", text)
     return [url.strip() for url in urls]
 
 
@@ -153,23 +153,9 @@ def generate_price_history(current_price: float, original_price: float) -> list[
     ]
 
 
-FALLBACK_IMAGE_POOL = [
-    "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900",
-    "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=900",
-    "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=900",
-    "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=900",
-    "https://images.unsplash.com/photo-1517059224940-d4af9eec41e5?w=900",
-    "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=900",
-    "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=900",
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900",
-    "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=900",
-    "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=900",
-]
-
-
 def fallback_image(seed: str) -> str:
-    digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest()[:8], 16)
-    return FALLBACK_IMAGE_POOL[digest % len(FALLBACK_IMAGE_POOL)]
+    _ = seed
+    return "/placeholder.svg"
 
 
 def review_timestamp(index: int) -> str:
@@ -245,30 +231,27 @@ def extract_amazon_products(limit: int) -> list[dict]:
     products: list[dict] = []
 
     with csv_path.open("r", encoding="utf-8", newline="") as file:
-        reader = csv.reader(file)
-        next(reader, None)
+        reader = csv.DictReader(file)
         for row_index, row in enumerate(reader, start=1):
-            if len(products) >= limit or len(row) < 15:
-                if len(products) >= limit:
-                    break
-                continue
+            if len(products) >= limit:
+                break
 
-            title = clean_text(row[1])
+            title = clean_text(row.get("title"))
             if not title:
                 continue
 
-            current_price = parse_float(row[3], 0) or parse_float(row[4], 0)
+            current_price = parse_float(row.get("price"), 0) or parse_float(row.get("price_text"), 0)
             if current_price <= 0:
                 price_seed = int(hashlib.md5(f"amazon-{row_index}-{title}".encode("utf-8")).hexdigest()[:8], 16)
                 current_price = 15 + (price_seed % 180000) / 100
 
-            rating = clamp_rating(parse_float(row[5], 4.3))
-            review_count = parse_int(row[6], int(rating * 50))
-            product_id = clean_text(row[0]) or f"AMAZON-ROW-{row_index}"
-            description = clean_text(row[12]) or f"{title} imported from Amazon best-seller dataset."
-            category = clean_text(row[8]) or category_from_text(title)
-            images = parse_urls(row[14])
-            url = clean_text(row[10]) or f"{AMAZON_SOURCE_URL}#record-{row_index}"
+            rating = clamp_rating(parse_float(row.get("rating"), 4.3))
+            review_count = parse_int(row.get("review_count"), int(rating * 50))
+            product_id = clean_text(row.get("id")) or f"AMAZON-ROW-{row_index}"
+            description = clean_text(row.get("description")) or f"{title} imported from Amazon best-seller dataset."
+            category = clean_text(row.get("category_name")) or category_from_text(title)
+            images = parse_urls(row.get("images_text")) or parse_urls(row.get("images"))
+            url = clean_text(row.get("url")) or f"{AMAZON_SOURCE_URL}#record-{row_index}"
 
             products.append(
                 build_record(
@@ -277,7 +260,7 @@ def extract_amazon_products(limit: int) -> list[dict]:
                     source_url=AMAZON_SOURCE_URL,
                     product_id=f"AMAZON2025-{product_id}-{row_index}",
                     title=title,
-                    brand=clean_text(row[2]) or "Amazon seller",
+                    brand=clean_text(row.get("brand")) or "Amazon seller",
                     category=f"Electronics > {category}" if "electronics" not in category.lower() else category,
                     description=description,
                     images=images,
@@ -292,7 +275,7 @@ def extract_amazon_products(limit: int) -> list[dict]:
                     timestamp=review_timestamp(row_index),
                     sentiment=rating_sentiment_label(rating),
                     specifications={
-                        "availability": clean_text(row[7]) or "Unknown",
+                        "availability": clean_text(row.get("availability")) or "Unknown",
                         "category_name": category,
                         "review_count": review_count,
                     },

@@ -125,35 +125,6 @@ const safeNumber = (value, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
-const fallbackImagePool = [
-  "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900",
-  "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=900",
-  "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=900",
-  "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=900",
-  "https://images.unsplash.com/photo-1517059224940-d4af9eec41e5?w=900",
-  "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=900",
-  "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=900",
-  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900",
-  "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=900",
-  "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=900",
-];
-
-const hashSeed = (value = "") =>
-  value
-    .split("")
-    .reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
-
-const pickFallbackImage = (seed) => {
-  const index = Math.abs(hashSeed(seed)) % fallbackImagePool.length;
-  return fallbackImagePool[index];
-};
-
-const isRepeatedPlaceholderImage = (image = "") =>
-  image.includes("example.com") ||
-  image.includes("photo-1498049794561-7780e7231661") ||
-  image.includes("photo-1505740420928-5e560c06d30e") ||
-  image.includes("photo-1610945265064-0e34e5519bbf");
-
 const pickFirstImage = (images) => {
   if (!images) return "";
 
@@ -254,8 +225,7 @@ const normalizeLocalSample = (record, index) => {
   const reviewCount = record.reviews?.length || 1;
   const positive = Math.round((positiveReviews / reviewCount) * 80 + 15);
   const sampleImage = record.images?.[0] || "";
-  const fallbackImage = pickFallbackImage(record.product_id || record.title || String(index));
-  const normalizedImage = !sampleImage || isRepeatedPlaceholderImage(sampleImage) ? fallbackImage : sampleImage;
+  const normalizedImage = sampleImage || "/placeholder.svg";
 
   return {
     id: record.product_id || `local-sample-${index}`,
