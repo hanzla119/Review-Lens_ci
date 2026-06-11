@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bot, Loader2, Send, Sparkles, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authStorage } from "@/lib/authApi";
+import { chatApi, ChatHistoryItem } from "@/lib/chatApi";
 import ProductCard from "@/components/ProductCard";
 import ProductDetailModal from "@/components/ProductDetailModal";
 import type { Product } from "@/data/mockData";
@@ -24,16 +25,17 @@ interface ChatInterfaceProps {
 
 const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   const { user, isAuthenticated } = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content: "Hello! I can help you discover products, compare prices, and understand review sentiment across multiple e-commerce platforms. What are you shopping for today?",
-      timestamp: new Date(),
-    },
-  ]);
+  const defaultWelcomeMessage: Message = {
+    id: "welcome",
+    role: "assistant",
+    content: "Hello! I can help you discover products, compare prices, and understand review sentiment across multiple e-commerce platforms. What are you shopping for today?",
+    timestamp: new Date(),
+  };
+
+  const [messages, setMessages] = useState<Message[]>([defaultWelcomeMessage]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +46,39 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      if (!isAuthenticated) {
+        setMessages([defaultWelcomeMessage]);
+        return;
+      }
+
+      setIsLoadingHistory(true);
+      try {
+        const response = await chatApi.getHistory();
+        if (response.history && response.history.length > 0) {
+          const loadedMessages = response.history.map((item: ChatHistoryItem) => ({
+            id: item._id,
+            role: item.role,
+            content: item.content,
+            timestamp: new Date(item.createdAt),
+            products: Array.isArray(item.products) ? (item.products as Product[]) : [],
+          }));
+          setMessages(loadedMessages);
+        } else {
+          setMessages([defaultWelcomeMessage]);
+        }
+      } catch (error) {
+        console.error("Failed to load chat history:", error);
+        setMessages([defaultWelcomeMessage]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadHistory();
+  }, [isAuthenticated]);
 
   const handleSend = async () => {
     if (!input.trim() || !isAuthenticated) {
@@ -72,36 +107,13 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
     setIsLoading(true);
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-      
-      console.log("Sending chat message to:", `${API_BASE_URL}/chatbot`);
-      
-      const response = await fetch(`${API_BASE_URL}/chatbot`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ message: input }),
-      });
-
-      console.log("Response status:", response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to send message: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Chat response:", data);
-      
+      const response = await chatApi.sendMessage(input);
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: response.message._id,
         role: "assistant",
-        content: data.message?.content || "Sorry, I couldn't process that.",
-        timestamp: new Date(),
-        products: data.message?.products || [],
+        content: response.message.content || "Sorry, I couldn't process that.",
+        timestamp: new Date(response.message.createdAt),
+        products: Array.isArray(response.message.products) ? (response.message.products as Product[]) : [],
       };
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -155,51 +167,62 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
       </CardHeader>
 
       <CardContent className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
-        {messages.map((message) => (
-          <div key={message.id}>
-            <div
-              className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-            >
-              <div
-                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  message.role === "user" ? "bg-primary" : "bg-secondary text-primary"
-                }`}
-              >
-                {message.role === "user" ? (
-                  <User className="w-4 h-4 text-primary-foreground" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-              </div>
-              <div
-                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-white shadow-sm"
-                }`}
-              >
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                <span className="text-xs opacity-60 mt-2 block">
-                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
+        {isLoadingHistory ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="rounded-2xl border border-border bg-white px-6 py-4 shadow-sm">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                Loading chat history...
               </div>
             </div>
-            
-            {message.role === "assistant" && message.products && message.products.length > 0 && (
-              <div className="mt-4 ml-11">
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-                  {message.products.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      product={product}
-                      onClick={() => setSelectedProduct(product)}
-                    />
-                  ))}
+          </div>
+        ) : (
+          messages.map((message) => (
+            <div key={message.id}>
+              <div
+                className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
+              >
+                <div
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                    message.role === "user" ? "bg-primary" : "bg-secondary text-primary"
+                  }`}
+                >
+                  {message.role === "user" ? (
+                    <User className="w-4 h-4 text-primary-foreground" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                </div>
+                <div
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                    message.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-white shadow-sm"
+                  }`}
+                >
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  <span className="text-xs opacity-60 mt-2 block">
+                    {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 </div>
               </div>
-            )}
-          </div>
-        ))}
+
+              {message.role === "assistant" && message.products && message.products.length > 0 && (
+                <div className="mt-4 ml-11">
+                  <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                    {message.products.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        onClick={() => setSelectedProduct(product)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
 
         {isLoading && (
           <div className="flex gap-3">
