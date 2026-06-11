@@ -54,6 +54,7 @@ SHOPIFY_STORES = [
 ]
 
 IMAGE_ENRICHMENT_TARGET_PLATFORMS = {"AliExpress", "Flipkart"}
+PLATFORM_SIMILARITY_DEDUPE_TARGETS = {"Flipkart", "Datafiniti"}
 
 TOKEN_STOPWORDS = {
     "and",
@@ -88,6 +89,10 @@ def clean_text(value: str | None) -> str:
 def tokenize(value: str) -> set[str]:
     raw_tokens = re.findall(r"[a-z0-9]+", clean_text(value).lower())
     return {token for token in raw_tokens if len(token) > 2 and token not in TOKEN_STOPWORDS}
+
+
+def normalize_title(value: str | None) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", clean_text(value).lower())).strip()
 
 
 def parse_float(value: str | None, fallback: float = 0.0) -> float:
@@ -145,6 +150,16 @@ def parse_urls(value: str | None) -> list[str]:
 
     urls = re.findall(r"https?://[^\s|,]+", text)
     return [url.strip() for url in urls]
+
+
+def is_non_product_image_url(url: str) -> bool:
+    normalized = clean_text(url).lower()
+    return (
+        "itemimgplaceholder" in normalized
+        or "s-b120x42.png" in normalized
+        or "flipkart-plus_8d85f4.png" in normalized
+        or "sprite" in normalized
+    )
 
 
 def parse_ebay_image_from_url(page_url: str | None) -> str:
@@ -230,7 +245,11 @@ def build_record(
     original = max(current, round(original_price, 2))
     discount = round(((original - current) / original) * 100, 2) if original > current else 0
     safe_rating = clamp_rating(rating)
-    image_list = [url for url in images if clean_text(url).startswith("http")]
+    image_list = [
+        url
+        for url in images
+        if clean_text(url).startswith("http") and not is_non_product_image_url(url)
+    ]
     if not image_list:
         image_list = [fallback_image(product_id)]
 
@@ -462,6 +481,7 @@ def extract_flipkart_products(limit: int) -> list[dict]:
     root = Path(kagglehub.dataset_download("mansithummar67/flipkart-product-review-dataset"))
     csv_path = root / "flipkart_product.csv"
     products: list[dict] = []
+    seen_titles: set[str] = set()
 
     with csv_path.open("r", encoding="latin-1", newline="") as file:
         reader = csv.DictReader(file)
@@ -472,6 +492,9 @@ def extract_flipkart_products(limit: int) -> list[dict]:
             title = clean_text(row.get("ProductName"))
             if not title:
                 continue
+            dedupe_title = normalize_title(title)
+            if not dedupe_title or dedupe_title in seen_titles:
+                continue
 
             current_price = parse_float(row.get("Price"), 0)
             if current_price <= 0:
@@ -480,6 +503,7 @@ def extract_flipkart_products(limit: int) -> list[dict]:
             rating = clamp_rating(parse_float(row.get("Rate"), 4.0))
             review_text = clean_text(row.get("Summary")) or clean_text(row.get("Review"))
             brand = title.split(" ")[0] if title else "Flipkart seller"
+            seen_titles.add(dedupe_title)
 
             products.append(
                 build_record(
@@ -515,6 +539,7 @@ def extract_datafiniti_products(limit: int) -> list[dict]:
     root = Path(kagglehub.dataset_download("datafiniti/electronic-products-prices"))
     csv_path = root / "DatafinitiElectronicsProductsPricingData.csv"
     products: list[dict] = []
+    seen_products: set[str] = set()
 
     with csv_path.open("r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
@@ -525,16 +550,20 @@ def extract_datafiniti_products(limit: int) -> list[dict]:
             title = clean_text(row.get("name"))
             if not title:
                 continue
+            brand = clean_text(row.get("brand")) or clean_text(row.get("manufacturer")) or "Marketplace brand"
+            dedupe_key = normalize_title(title)
+            if not dedupe_key or dedupe_key in seen_products:
+                continue
 
             current_price = parse_float(row.get("prices.amountMin"), 0) or parse_float(row.get("prices.amountMax"), 0)
             if current_price <= 0:
                 continue
 
-            brand = clean_text(row.get("brand")) or clean_text(row.get("manufacturer")) or "Marketplace brand"
             categories = clean_text(row.get("primaryCategories")) or clean_text(row.get("categories"))
             image_urls = parse_urls(row.get("imageURLs"))
             product_urls = parse_urls(row.get("sourceURLs")) or parse_urls(row.get("prices.sourceURLs"))
             category = category_from_text(categories, title)
+            seen_products.add(dedupe_key)
 
             products.append(
                 build_record(
@@ -665,11 +694,14 @@ def dedupe_records(records: Iterable[dict]) -> list[dict]:
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict] = []
     for record in records:
-        key = (
-            clean_text(record.get("source_platform")),
-            clean_text(record.get("product_id")),
-            clean_text(record.get("title")).lower(),
-        )
+        platform = clean_text(record.get("source_platform"))
+        dedupe_title = normalize_title(record.get("title"))
+        dedupe_brand = normalize_title(record.get("brand"))
+        key = (platform, clean_text(record.get("product_id")), clean_text(record.get("title")).lower())
+        if platform == "Datafiniti":
+            key = (platform, "", dedupe_title)
+        elif platform in PLATFORM_SIMILARITY_DEDUPE_TARGETS:
+            key = (platform, dedupe_brand, dedupe_title)
         if key in seen:
             continue
         seen.add(key)
@@ -707,6 +739,8 @@ def enrich_missing_platform_images(records: list[dict]) -> list[dict]:
     for index, source in enumerate(image_sources):
         category_index[source["category"]].append(index)
 
+    image_usage: Counter[str] = Counter()
+
     for record in records:
         platform = clean_text(record.get("source_platform"))
         image = (record.get("images") or [""])[0]
@@ -731,17 +765,26 @@ def enrich_missing_platform_images(records: list[dict]) -> list[dict]:
                 adjusted += 2
             if record_brand and source["brand"] and record_brand == source["brand"]:
                 adjusted += 2
+            adjusted -= image_usage[source["image"]] * 2
             if adjusted > best_score:
                 best_score = adjusted
                 best_candidate = candidate
 
         if best_candidate is not None:
-            record["images"] = [image_sources[best_candidate]["image"]]
+            selected_image = image_sources[best_candidate]["image"]
+            record["images"] = [selected_image]
+            image_usage[selected_image] += 1
             continue
 
         category_candidates = category_index.get(record_category, [])
         if category_candidates:
-            record["images"] = [image_sources[category_candidates[0]]["image"]]
+            selected_candidates = sorted(
+                category_candidates,
+                key=lambda candidate_index: image_usage[image_sources[candidate_index]["image"]],
+            )
+            selected_image = image_sources[selected_candidates[0]]["image"]
+            record["images"] = [selected_image]
+            image_usage[selected_image] += 1
 
     return records
 
