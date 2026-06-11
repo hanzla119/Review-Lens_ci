@@ -121,6 +121,19 @@ def parse_urls(value: str | None) -> list[str]:
     return [url.strip() for url in urls]
 
 
+def parse_ebay_image_from_url(page_url: str | None) -> str:
+    url_text = clean_text(page_url)
+    if not url_text:
+        return ""
+
+    match = re.search(r"g:([A-Za-z0-9~_-]+)", url_text)
+    if not match:
+        return ""
+
+    image_token = match.group(1)
+    return f"https://i.ebayimg.com/images/g/{image_token}/s-l1600.jpg"
+
+
 def category_from_text(*values: str) -> str:
     text = " ".join(clean_text(value).lower() for value in values if value).strip()
     if any(token in text for token in ("phone", "mobile", "iphone", "galaxy", "pixel")):
@@ -289,14 +302,11 @@ def extract_amazon_products(limit: int) -> list[dict]:
 def extract_ebay_products(limit: int) -> list[dict]:
     root = Path(kagglehub.dataset_download("promptcloud/ebay-product-listing-dataset"))
     csv_path = root / "marketing_sample_for_ebay_com-ebay_com_product_details__20200901_20201031__30k_data.csv"
-    products: list[dict] = []
+    ranked_candidates: list[tuple[int, dict]] = []
 
     with csv_path.open("r", encoding="utf-8", newline="") as file:
         reader = csv.DictReader(file)
         for row_index, row in enumerate(reader, start=1):
-            if len(products) >= limit:
-                break
-
             title = (
                 clean_text(row.get("Title"))
                 or clean_text(row.get("Model Name"))
@@ -319,36 +329,38 @@ def extract_ebay_products(limit: int) -> list[dict]:
             manufacturer = clean_text(row.get("Manufacturer")) or "eBay seller"
             url = clean_text(row.get("Pageurl")) or f"{EBAY_SOURCE_URL}#record-{row_index}"
             category = category_from_text(title, row.get("Color Category"), row.get("Internal Memory"))
+            ebay_image = parse_ebay_image_from_url(url)
 
-            products.append(
-                build_record(
-                    source_platform="eBay",
-                    source_dataset="eBay Product Listing Dataset",
-                    source_url=EBAY_SOURCE_URL,
-                    product_id=f"EBAY-{product_id}",
-                    title=title,
-                    brand=manufacturer,
-                    category=category,
-                    description=f"eBay listing extracted from PromptCloud dataset: {title}",
-                    images=[],
-                    product_url=url,
-                    current_price=current_price,
-                    original_price=current_price * 1.08,
-                    currency="USD",
-                    rating=rating,
-                    review_count=max(1, review_count),
-                    review_text=f"eBay listing metadata imported with {max(1, review_count)} ratings.",
-                    helpful_votes=max(1, int(max(1, review_count) * 0.03)),
-                    timestamp=review_timestamp(row_index + 200000),
-                    sentiment=rating_sentiment_label(rating),
-                    specifications={
-                        "model_num": clean_text(row.get("Model Num")),
-                        "sku": clean_text(row.get("Sku")),
-                        "stock": clean_text(row.get("Stock")),
-                    },
-                )
+            candidate = build_record(
+                source_platform="eBay",
+                source_dataset="eBay Product Listing Dataset",
+                source_url=EBAY_SOURCE_URL,
+                product_id=f"EBAY-{product_id}",
+                title=title,
+                brand=manufacturer,
+                category=category,
+                description=f"eBay listing extracted from PromptCloud dataset: {title}",
+                images=[ebay_image] if ebay_image else [],
+                product_url=url,
+                current_price=current_price,
+                original_price=current_price * 1.08,
+                currency="USD",
+                rating=rating,
+                review_count=max(1, review_count),
+                review_text=f"eBay listing metadata imported with {max(1, review_count)} ratings.",
+                helpful_votes=max(1, int(max(1, review_count) * 0.03)),
+                timestamp=review_timestamp(row_index + 200000),
+                sentiment=rating_sentiment_label(rating),
+                specifications={
+                    "model_num": clean_text(row.get("Model Num")),
+                    "sku": clean_text(row.get("Sku")),
+                    "stock": clean_text(row.get("Stock")),
+                },
             )
-    return products
+            ranked_candidates.append((1 if ebay_image else 0, candidate))
+
+    ranked_candidates.sort(key=lambda item: item[0], reverse=True)
+    return [candidate for _, candidate in ranked_candidates[:limit]]
 
 
 def extract_aliexpress_products(limit: int) -> list[dict]:
@@ -580,6 +592,12 @@ def extract_shopify_products(limit: int) -> list[dict]:
                 item_id = clean_text(str(item.get("id") or ""))
                 handle = clean_text(item.get("handle"))
                 item_images = [clean_text(img.get("src")) for img in (item.get("images") or []) if clean_text(img.get("src"))]
+                if not item_images:
+                    featured_image = item.get("image") or {}
+                    if isinstance(featured_image, dict):
+                        featured_src = clean_text(featured_image.get("src"))
+                        if featured_src:
+                            item_images = [featured_src]
                 product_url = f"{store.rstrip('/')}/products/{handle}" if handle else store
                 description = html_to_text(item.get("body_html"))
                 category = category_from_text(item.get("product_type"), title)
