@@ -48,7 +48,7 @@ const CartDrawer = ({ open, onClose }: CartDrawerProps) => {
               Tap a product to review it again any time after login.
             </p>
           </CardHeader>
-          <CardContent className="space-y-4 p-4">
+          <CardContent className="space-y-4 p-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 12rem)" }}>
             {items.length === 0 ? (
               <div className="rounded-3xl border border-dashed border-border bg-muted/60 p-6 text-center text-sm text-muted-foreground">
                 Your saved items will appear here.
