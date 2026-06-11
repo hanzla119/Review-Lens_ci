@@ -359,8 +359,8 @@ const safeNumber = (value: unknown, fallback = 0) => {
 };
 
 const normalizeLocalSampleProduct = (record: LocalSampleRecord, index: number): Product => {
-  const currentPrice = safeNumber(record.pricing?.current_price, 0);
-  const originalPrice = safeNumber(record.pricing?.original_price, currentPrice * 1.1);
+  const currentPrice = Math.max(1, safeNumber(record.pricing?.current_price, 1));
+  const originalPrice = Math.max(currentPrice, safeNumber(record.pricing?.original_price, currentPrice * 1.1));
   const rating =
     record.reviews?.length && record.reviews.length > 0
       ? record.reviews.reduce((sum, review) => sum + safeNumber(review.rating, 0), 0) / record.reviews.length
@@ -368,17 +368,12 @@ const normalizeLocalSampleProduct = (record: LocalSampleRecord, index: number): 
   const positiveReviews = record.reviews?.filter((review) => review.sentiment === "positive").length || 0;
   const reviewCount = record.reviews?.length || 1;
   const positive = Math.round((positiveReviews / reviewCount) * 80 + 15);
-  const sampleImage = record.images?.[0] || "";
-  const fallbackImage =
-    record.source_platform === "Daraz"
-      ? "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600"
-      : "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600";
 
   return {
     id: record.product_id || `local-sample-${index}`,
     name: record.title || "Marketplace product",
-    price: Math.max(1, currentPrice),
-    originalPrice: Math.max(Math.max(1, currentPrice), originalPrice),
+    price: currentPrice,
+    originalPrice,
     currency: record.pricing?.currency || "USD",
     rating: Number(rating.toFixed(1)),
     reviewCount,
@@ -387,7 +382,7 @@ const normalizeLocalSampleProduct = (record: LocalSampleRecord, index: number): 
       neutral: Math.max(5, 100 - positive - 8),
       negative: 8,
     },
-    image: sampleImage.includes("example.com") ? fallbackImage : sampleImage || fallbackImage,
+    image: record.images?.[0] || "/placeholder.svg",
     platform: record.source_platform || "Dataset",
     category: record.category?.split(">").pop()?.trim() || "Electronics",
     brand: record.brand,
@@ -534,10 +529,11 @@ const fetchHuggingFaceProducts = async (limit: number): Promise<ProductsResponse
 };
 
 const fetchBackendProducts = async (limit: number): Promise<ProductsResponse> => {
+  const cacheBuster = Date.now();
   const response = await withTimeout(
-    `${API_BASE_URL}/products?limit=${limit}`,
+    `${API_BASE_URL}/products?limit=${limit}&refresh=true&_=${cacheBuster}`,
     { headers: { Accept: "application/json" } },
-    4000,
+    8000,
   );
 
   const data = await response.json().catch(() => ({}));
@@ -551,7 +547,12 @@ const fetchBackendProducts = async (limit: number): Promise<ProductsResponse> =>
 
 const fetchLocalDatasetProducts = async (limit: number): Promise<ProductsResponse> => {
   const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
-  const response = await withTimeout(LOCAL_DATASET_PATH, { headers: { Accept: "application/json" } }, 8000);
+  const cacheBuster = Date.now();
+  const response = await withTimeout(
+    `${LOCAL_DATASET_PATH}?_=${cacheBuster}`,
+    { headers: { Accept: "application/json" } },
+    8000,
+  );
   const payload = await response.json();
 
   if (!response.ok || !Array.isArray(payload)) {
@@ -562,7 +563,7 @@ const fetchLocalDatasetProducts = async (limit: number): Promise<ProductsRespons
     .map((record: LocalSampleRecord, index: number) => normalizeLocalSampleProduct(record, index))
     .filter((product) => product.name && product.price > 0);
 
-  if (!products.length) {
+  if (products.length === 0) {
     throw new Error("Local normalized dataset file is empty.");
   }
 

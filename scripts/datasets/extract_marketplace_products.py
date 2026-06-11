@@ -670,7 +670,7 @@ def main() -> None:
     parser.add_argument(
         "--public-output",
         default=str(PUBLIC_OUTPUT_PATH),
-        help="Optional public static JSON mirror for frontend-only fallback.",
+        help="Public JSON mirror path for frontend static fallback.",
     )
     args = parser.parse_args()
 
@@ -680,15 +680,15 @@ def main() -> None:
     payload = json.dumps(products, indent=2)
     output_path.write_text(payload, encoding="utf-8")
 
-    public_output_path = Path(args.public_output)
-    if str(public_output_path).strip():
-        public_output_path.parent.mkdir(parents=True, exist_ok=True)
-        public_output_path.write_text(payload, encoding="utf-8")
+    public_output = Path(args.public_output)
+    if str(public_output).strip():
+        public_output.parent.mkdir(parents=True, exist_ok=True)
+        public_output.write_text(payload, encoding="utf-8")
 
     counts = Counter(product["source_platform"] for product in products)
     print(f"Saved {len(products)} normalized products to {output_path}")
-    if str(public_output_path).strip():
-        print(f"Mirrored catalog to {public_output_path}")
+    if str(public_output).strip():
+        print(f"Mirrored catalog to {public_output}")
     for source, count in sorted(counts.items()):
         print(f"- {source}: {count}")
 
