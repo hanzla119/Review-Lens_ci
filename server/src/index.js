@@ -48,13 +48,18 @@ app.use("/api/products", productRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-connectDatabase()
-  .then(() => {
-    app.listen(env.port, () => {
-      console.log(`Review Lens API running on port ${env.port}`);
-    });
-  })
-  .catch((error) => {
-    console.error("Failed to start server", error);
-    process.exit(1);
+const startServer = async () => {
+  const dbConnected = await connectDatabase();
+  app.locals.dbConnected = dbConnected;
+
+  app.listen(env.port, () => {
+    console.log(`Review Lens API running on port ${env.port}`);
+    if (!dbConnected) {
+      console.warn("Auth routes require MongoDB, but /api/products remains available.");
+    }
   });
+};
+
+startServer().catch((error) => {
+  console.error("Failed to start server", error);
+});

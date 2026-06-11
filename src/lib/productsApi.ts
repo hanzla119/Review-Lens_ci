@@ -10,6 +10,7 @@ export interface ProductsResponse {
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 const HF_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const HF_DATASET = "gatech-scheller-ai-in-business/amazon-products";
+const LOCAL_DATASET_PATH = "/data/samples/review_lens_products_sample.json";
 const PKR_EXCHANGE_RATE = 278;
 const MAX_PRODUCTS = 10000;
 const DATASET_PAGE_SIZE = 100;
@@ -31,6 +32,41 @@ interface HuggingFaceRow {
     thumb?: string[];
   };
   main_category?: string;
+}
+
+interface LocalSampleReview {
+  reviewer_name?: string;
+  rating?: number;
+  review_text?: string;
+  timestamp?: string;
+  helpful_votes?: number;
+  sentiment?: string;
+}
+
+interface LocalSamplePricingPoint {
+  date?: string;
+  price?: number;
+}
+
+interface LocalSampleRecord {
+  source_platform?: string;
+  source_dataset?: string;
+  source_url?: string;
+  product_id?: string;
+  title?: string;
+  brand?: string;
+  category?: string;
+  description?: string;
+  images?: string[];
+  product_url?: string;
+  specifications?: Record<string, unknown>;
+  pricing?: {
+    current_price?: number;
+    original_price?: number;
+    currency?: string;
+    history?: LocalSamplePricingPoint[];
+  };
+  reviews?: LocalSampleReview[];
 }
 
 const bundledDatasetProducts: Product[] = [
@@ -322,6 +358,53 @@ const safeNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(number) ? number : fallback;
 };
 
+const normalizeLocalSampleProduct = (record: LocalSampleRecord, index: number): Product => {
+  const currentPrice = Math.max(1, safeNumber(record.pricing?.current_price, 1));
+  const originalPrice = Math.max(currentPrice, safeNumber(record.pricing?.original_price, currentPrice * 1.1));
+  const rating =
+    record.reviews?.length && record.reviews.length > 0
+      ? record.reviews.reduce((sum, review) => sum + safeNumber(review.rating, 0), 0) / record.reviews.length
+      : 4.2;
+  const positiveReviews = record.reviews?.filter((review) => review.sentiment === "positive").length || 0;
+  const reviewCount = record.reviews?.length || 1;
+  const positive = Math.round((positiveReviews / reviewCount) * 80 + 15);
+
+  return {
+    id: record.product_id || `local-sample-${index}`,
+    name: record.title || "Marketplace product",
+    price: currentPrice,
+    originalPrice,
+    currency: record.pricing?.currency || "USD",
+    rating: Number(rating.toFixed(1)),
+    reviewCount,
+    sentiment: {
+      positive,
+      neutral: Math.max(5, 100 - positive - 8),
+      negative: 8,
+    },
+    image: record.images?.[0] || "/placeholder.svg",
+    platform: record.source_platform || "Dataset",
+    category: record.category?.split(">").pop()?.trim() || "Electronics",
+    brand: record.brand,
+    sourceDataset: record.source_dataset,
+    productUrl: record.product_url || record.source_url,
+    description: record.description,
+    specifications: record.specifications || {},
+    priceHistory: (record.pricing?.history || []).map((point) => ({
+      date: String(point.date || "").slice(0, 7),
+      price: Math.max(1, safeNumber(point.price, currentPrice)),
+    })),
+    reviews: (record.reviews || []).map((review) => ({
+      author: review.reviewer_name || "Dataset reviewer",
+      rating: safeNumber(review.rating, 0),
+      text: review.review_text || "",
+      sentiment: review.sentiment || "neutral",
+      helpfulVotes: safeNumber(review.helpful_votes, 0),
+      timestamp: review.timestamp,
+    })),
+  };
+};
+
 const firstImage = (images?: HuggingFaceRow["images"]) =>
   [...(images?.hi_res || []), ...(images?.large || []), ...(images?.thumb || [])].filter(Boolean)[0] ||
   "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600";
@@ -446,10 +529,11 @@ const fetchHuggingFaceProducts = async (limit: number): Promise<ProductsResponse
 };
 
 const fetchBackendProducts = async (limit: number): Promise<ProductsResponse> => {
+  const cacheBuster = Date.now();
   const response = await withTimeout(
-    `${API_BASE_URL}/products?limit=${limit}`,
+    `${API_BASE_URL}/products?limit=${limit}&refresh=true&_=${cacheBuster}`,
     { headers: { Accept: "application/json" } },
-    4000,
+    8000,
   );
 
   const data = await response.json().catch(() => ({}));
@@ -461,6 +545,35 @@ const fetchBackendProducts = async (limit: number): Promise<ProductsResponse> =>
   return data as ProductsResponse;
 };
 
+const fetchLocalDatasetProducts = async (limit: number): Promise<ProductsResponse> => {
+  const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
+  const cacheBuster = Date.now();
+  const response = await withTimeout(
+    `${LOCAL_DATASET_PATH}?_=${cacheBuster}`,
+    { headers: { Accept: "application/json" } },
+    8000,
+  );
+  const payload = await response.json();
+
+  if (!response.ok || !Array.isArray(payload)) {
+    throw new Error("Local normalized dataset file is unavailable.");
+  }
+
+  const products = payload
+    .map((record: LocalSampleRecord, index: number) => normalizeLocalSampleProduct(record, index))
+    .filter((product) => product.name && product.price > 0);
+
+  if (products.length === 0) {
+    throw new Error("Local normalized dataset file is empty.");
+  }
+
+  return {
+    products: products.slice(0, safeLimit),
+    source: "local-normalized-samples-static",
+    total: products.length,
+  };
+};
+
 export const productsApi = {
   list: async (limit = MAX_PRODUCTS): Promise<ProductsResponse> => {
     const safeLimit = Math.min(Math.max(limit, 1), MAX_PRODUCTS);
@@ -468,7 +581,13 @@ export const productsApi = {
       const backendResponse = await fetchBackendProducts(safeLimit);
       if (backendResponse.products?.length) return backendResponse;
     } catch (error) {
-      console.info("Local products API unavailable; trying Hugging Face dataset directly.", error);
+      console.info("Local products API unavailable; trying local static dataset file.", error);
+    }
+
+    try {
+      return await fetchLocalDatasetProducts(safeLimit);
+    } catch (error) {
+      console.info("Local static dataset file unavailable; trying Hugging Face dataset directly.", error);
     }
 
     try {
