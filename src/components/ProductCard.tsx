@@ -31,6 +31,13 @@ const buildMissingImageCard = (product: Product) => {
 };
 
 const ProductCard = ({ product, onClick }: ProductCardProps) => {
+  const safeSentiment = product.sentiment || { positive: 0, neutral: 0, negative: 0 };
+  const productName = product.name || "Product";
+  const platformName = product.platform || "Marketplace";
+  const productCategory = product.category || "Unknown";
+  const rating = typeof product.rating === "number" ? product.rating : 0;
+  const reviewCount = typeof product.reviewCount === "number" ? product.reviewCount : 0;
+
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
@@ -48,18 +55,18 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
   };
 
   const sentimentLabel =
-    product.sentiment.positive >= 80
+    safeSentiment.positive >= 80
       ? "Highly positive"
-      : product.sentiment.positive >= 65
+      : safeSentiment.positive >= 65
         ? "Positive"
-        : product.sentiment.positive >= 50
+        : safeSentiment.positive >= 50
           ? "Mixed"
           : "Needs review";
 
   const sentimentStyle =
-    product.sentiment.positive >= 65
+    safeSentiment.positive >= 65
       ? "bg-green-50 text-green-700 border-green-200"
-      : product.sentiment.positive >= 50
+      : safeSentiment.positive >= 50
         ? "bg-yellow-50 text-yellow-700 border-yellow-200"
         : "bg-red-50 text-red-700 border-red-200";
 
@@ -196,7 +203,16 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
               </div>
             )}
           </div>
-          <Button variant="outline" size="sm" className="shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onClick?.();
+            }}
+          >
             <ExternalLink className="w-4 h-4" />
             Details
           </Button>

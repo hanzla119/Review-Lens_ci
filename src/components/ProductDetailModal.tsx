@@ -45,6 +45,8 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
     }).format(amountInPKR);
   };
 
+  const safeSentiment = product.sentiment || { positive: 0, neutral: 0, negative: 0 };
+  const safePriceHistory = Array.isArray(product.priceHistory) ? product.priceHistory : [];
   const mockReviews = product.reviews?.length ? product.reviews : [
     { id: 1, author: "Ahmad K.", rating: 5, text: "Excellent product! Worth every penny. The quality exceeded my expectations.", sentiment: "positive" },
     { id: 2, author: "Sara M.", rating: 4, text: "Good product overall, delivery was fast. Minor issues with packaging.", sentiment: "neutral" },
@@ -141,15 +143,15 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
             </h3>
             <div className="grid grid-cols-3 gap-4">
               <div className="rounded-2xl bg-success/10 p-4 text-center">
-                <div className="text-3xl font-bold text-success mb-1">{product.sentiment.positive}%</div>
+                <div className="text-3xl font-bold text-success mb-1">{safeSentiment.positive}%</div>
                 <div className="text-sm text-muted-foreground">Positive</div>
               </div>
               <div className="rounded-2xl bg-warning/10 p-4 text-center">
-                <div className="text-3xl font-bold text-warning mb-1">{product.sentiment.neutral}%</div>
+                <div className="text-3xl font-bold text-warning mb-1">{safeSentiment.neutral}%</div>
                 <div className="text-sm text-muted-foreground">Neutral</div>
               </div>
               <div className="rounded-2xl bg-destructive/10 p-4 text-center">
-                <div className="text-3xl font-bold text-destructive mb-1">{product.sentiment.negative}%</div>
+                <div className="text-3xl font-bold text-destructive mb-1">{safeSentiment.negative}%</div>
                 <div className="text-sm text-muted-foreground">Negative</div>
               </div>
             </div>
@@ -163,7 +165,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
             </h3>
             <div className="h-64 rounded-3xl border border-border bg-muted/40 p-4">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={product.priceHistory}>
+                <LineChart data={safePriceHistory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis 
                     dataKey="date" 

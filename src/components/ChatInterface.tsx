@@ -7,6 +7,7 @@ import { Bot, Loader2, Send, Sparkles, User } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { authStorage } from "@/lib/authApi";
 import ProductCard from "@/components/ProductCard";
+import ProductDetailModal from "@/components/ProductDetailModal";
 import type { Product } from "@/data/mockData";
 
 interface Message {
