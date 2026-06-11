@@ -5,7 +5,7 @@ const HUGGING_FACE_ROWS_URL = "https://datasets-server.huggingface.co/rows";
 const AMAZON_PRODUCTS_DATASET = "gatech-scheller-ai-in-business/amazon-products";
 const PKR_EXCHANGE_RATE = 278;
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const MAX_PRODUCTS = 10000;
+const MAX_PRODUCTS = 5000;
 const DATASET_PAGE_SIZE = 100;
 
 const marketplaceChannels = [
@@ -49,7 +49,6 @@ const marketplaceChannels = [
 
 let cachedProducts = null;
 let cachedAt = 0;
-let cachedSource = "cache";
 
 const fallbackProducts = [
   {
@@ -225,7 +224,10 @@ const normalizeLocalSample = (record, index) => {
   const reviewCount = record.reviews?.length || 1;
   const positive = Math.round((positiveReviews / reviewCount) * 80 + 15);
   const sampleImage = record.images?.[0] || "";
-  const normalizedImage = sampleImage || "/placeholder.svg";
+  const fallbackImage =
+    record.source_platform === "Daraz"
+      ? "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=600"
+      : "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600";
 
   return {
     id: record.product_id || `local-sample-${index}`,
@@ -240,7 +242,7 @@ const normalizeLocalSample = (record, index) => {
       neutral: Math.max(5, 100 - positive - 8),
       negative: 8,
     },
-    image: normalizedImage,
+    image: sampleImage.includes("example.com") ? fallbackImage : sampleImage || fallbackImage,
     platform: record.source_platform || "Dataset",
     category: record.category?.split(">").pop()?.trim() || "Electronics",
     brand: record.brand,
@@ -272,17 +274,6 @@ const readLocalDatasetSamples = async () => {
     console.warn("Could not read local dataset sample products", error.message);
     return fallbackProducts;
   }
-};
-
-const paginateProducts = (products, offset, limit) => {
-  const safeOffset = Math.max(Number(offset) || 0, 0);
-  const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), MAX_PRODUCTS);
-
-  return {
-    safeOffset,
-    safeLimit,
-    page: products.slice(safeOffset, safeOffset + safeLimit),
-  };
 };
 
 const fetchAmazonDatasetPage = async (length, offset) => {
@@ -327,61 +318,37 @@ const fetchAmazonDatasetProducts = async (limit = 24, offset = 0) => {
 
 export const getDatasetProducts = async ({ limit = 24, offset = 0, refresh = false } = {}) => {
   const now = Date.now();
-  const safeOffset = Math.max(Number(offset) || 0, 0);
   const safeLimit = Math.min(Math.max(Number(limit) || 24, 1), MAX_PRODUCTS);
 
   if (!refresh && cachedProducts && now - cachedAt < CACHE_TTL_MS) {
-    const { page } = paginateProducts(cachedProducts, safeOffset, safeLimit);
     return {
-      products: page,
-      source: cachedSource,
+      products: cachedProducts.slice(0, safeLimit),
+      source: "cache",
       total: cachedProducts.length,
     };
   }
 
   const localProducts = await readLocalDatasetSamples();
 
-  if (safeOffset < localProducts.length) {
-    const { page } = paginateProducts(localProducts, safeOffset, safeLimit);
-    cachedProducts = localProducts;
-    cachedAt = now;
-    cachedSource = "local-normalized-samples";
-
-    return {
-      products: page,
-      source: cachedSource,
-      total: localProducts.length,
-    };
-  }
-
   try {
-    const missingProductsCount = Math.max(safeOffset + safeLimit - localProducts.length, 0);
-    const remoteProducts = missingProductsCount
-      ? await fetchAmazonDatasetProducts(missingProductsCount, 0)
-      : [];
-    const combinedProducts = [...localProducts, ...remoteProducts];
-    const { page } = paginateProducts(combinedProducts, safeOffset, safeLimit);
-    cachedProducts = combinedProducts;
+    const remoteProducts = await fetchAmazonDatasetProducts(safeLimit, Number(offset) || 0);
+    const products = [...remoteProducts, ...localProducts].slice(0, safeLimit);
+    cachedProducts = products;
     cachedAt = now;
-    cachedSource = "local-plus-huggingface-products";
 
     return {
-      products: page,
-      source: cachedSource,
-      total: combinedProducts.length,
+      products,
+      source: "huggingface-amazon-products",
+      total: products.length,
     };
   } catch (error) {
     console.warn("Using local dataset product fallback", error.message);
-    const combinedProducts = [...localProducts, ...fallbackProducts];
-    const { page } = paginateProducts(combinedProducts, safeOffset, safeLimit);
-    cachedProducts = combinedProducts;
-    cachedAt = now;
-    cachedSource = "local-normalized-samples";
+    const products = [...localProducts, ...fallbackProducts].slice(0, safeLimit);
 
     return {
-      products: page,
-      source: cachedSource,
-      total: combinedProducts.length,
+      products,
+      source: "local-normalized-samples",
+      total: products.length,
       warning: "Live Hugging Face dataset fetch failed, so local normalized dataset samples were used.",
     };
   }

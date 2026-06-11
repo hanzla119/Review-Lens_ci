@@ -4,7 +4,7 @@ export const normalizeEmail = (email = "") => email.trim().toLowerCase();
 
 export const validateEmail = (email) => {
   const normalized = normalizeEmail(email);
-  const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+  const isValid = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(normalized);
 
   if (!isValid) {
     throw new ApiError(400, "Please enter a valid email address.");

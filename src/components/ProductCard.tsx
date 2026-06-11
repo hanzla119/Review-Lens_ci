@@ -85,6 +85,15 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
       variant="interactive" 
       className="group flex h-full transform flex-col overflow-hidden transition-all duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl"
       onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (!onClick) return;
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img

@@ -26,6 +26,8 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
   cookieSecure: process.env.COOKIE_SECURE === "true",
   googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  geminiApiKey: process.env.GEMINI_API_KEY || "",
+
   smtp: {
     host: process.env.SMTP_HOST || "",
     port: Number(process.env.SMTP_PORT || 587),

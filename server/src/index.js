@@ -7,6 +7,7 @@ import { env } from "./config/env.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
+import chatbotRoutes from "./routes/chatbotRoutes.js";
 
 const app = express();
 
@@ -44,22 +45,18 @@ app.use(
   authRoutes,
 );
 app.use("/api/products", productRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
 
-const startServer = async () => {
-  const dbConnected = await connectDatabase();
-  app.locals.dbConnected = dbConnected;
-
-  app.listen(env.port, () => {
-    console.log(`Review Lens API running on port ${env.port}`);
-    if (!dbConnected) {
-      console.warn("Auth routes require MongoDB, but /api/products remains available.");
-    }
+connectDatabase()
+  .then(() => {
+    app.listen(env.port, () => {
+      console.log(`Review Lens API running on port ${env.port}`);
+    });
+  })
+  .catch((error) => {
+    console.error("Failed to start server", error);
+    process.exit(1);
   });
-};
-
-startServer().catch((error) => {
-  console.error("Failed to start server", error);
-});

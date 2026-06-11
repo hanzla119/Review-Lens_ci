@@ -4,12 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Bot, Loader2, Send, Sparkles, User } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { authStorage } from "@/lib/authApi";
+import ProductCard from "@/components/ProductCard";
+import type { Product } from "@/data/mockData";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  products?: Product[];
 }
 
 interface ChatInterfaceProps {
@@ -17,6 +22,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
+  const { user, isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
@@ -27,6 +33,7 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -37,16 +44,20 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
     scrollToBottom();
   }, [messages]);
 
-  const mockResponses = [
-    "Based on the available products, I found 3 highly-rated laptops under PKR 150,000 with strong review sentiment. The ASUS VivoBook 15 is the best value option with 92% positive sentiment.",
-    "I analyzed 2,847 reviews for the MacBook Pro M3. Sentiment is mostly positive at 85%, with users praising performance and battery life. The main concern is the premium price.",
-    "For wireless headphones, the Sony WH-1000XM5 is a strong recommendation. It is listed at PKR 29,990 with 78% positive reviews and consistent praise for noise cancellation.",
-    "Price drop detected: Samsung Galaxy S24 Ultra is down 15% on Amazon. Current price is PKR 184,999, which is the lowest point in the recent price history shown.",
-    "For smartphones, Galaxy S24 is strongest for camera quality, iPhone 15 is strongest for battery consistency, and Pixel 8 offers strong value for AI features.",
-  ];
-
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || !isAuthenticated) {
+      console.warn("Cannot send message - input empty or not authenticated", { 
+        inputEmpty: !input.trim(), 
+        isAuthenticated 
+      });
+      return;
+    }
+
+    const token = authStorage.getToken();
+    if (!token) {
+      console.warn("No auth token found");
+      return;
+    }
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -59,18 +70,51 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const randomResponse = mockResponses[Math.floor(Math.random() * mockResponses.length)];
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+      
+      console.log("Sending chat message to:", `${API_BASE_URL}/chatbot`);
+      
+      const response = await fetch(`${API_BASE_URL}/chatbot`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message: input }),
+      });
+
+      console.log("Response status:", response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Failed to send message: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Chat response:", data);
+      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: randomResponse,
+        content: data.message?.content || "Sorry, I couldn't process that.",
         timestamp: new Date(),
+        products: data.message?.products || [],
       };
       setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Chat error:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: `Sorry, I encountered an error: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const suggestedQueries = [
@@ -83,6 +127,16 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
   const containerClass = fullPage 
     ? "h-[calc(100vh-120px)]" 
     : "h-[500px]";
+
+  // Debug: Show authentication status
+  useEffect(() => {
+    console.log("ChatInterface Auth Status:", {
+      isAuthenticated,
+      user: user?.email,
+      token: authStorage.getToken() ? "exists" : "missing",
+      hasDOMReady: true,
+    });
+  }, [isAuthenticated, user]);
 
   return (
     <Card variant="default" className={`flex flex-col overflow-hidden ${containerClass}`}>
@@ -101,33 +155,48 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
 
       <CardContent className="flex-1 space-y-4 overflow-y-auto bg-muted/30 p-4">
         {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
-          >
+          <div key={message.id}>
             <div
-              className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                message.role === "user" ? "bg-primary" : "bg-secondary text-primary"
-              }`}
+              className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
             >
-              {message.role === "user" ? (
-                <User className="w-4 h-4 text-primary-foreground" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  message.role === "user" ? "bg-primary" : "bg-secondary text-primary"
+                }`}
+              >
+                {message.role === "user" ? (
+                  <User className="w-4 h-4 text-primary-foreground" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+              </div>
+              <div
+                className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  message.role === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-border bg-white shadow-sm"
+                }`}
+              >
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                <span className="text-xs opacity-60 mt-2 block">
+                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
             </div>
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                message.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-white shadow-sm"
-              }`}
-            >
-              <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-              <span className="text-xs opacity-60 mt-2 block">
-                {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
+            
+            {message.role === "assistant" && message.products && message.products.length > 0 && (
+              <div className="mt-4 ml-11">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+                  {message.products.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onClick={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
 
@@ -167,7 +236,21 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
         </div>
       )}
 
+      {selectedProduct && (
+        <ProductDetailModal
+          product={selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
+
       <div className="border-t border-border bg-white p-4">
+        {!isAuthenticated && (
+          <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
+            <p className="text-sm text-amber-800">
+              <strong>⚠️ Not logged in</strong> - Please log in to use the chat assistant.
+            </p>
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -178,10 +261,17 @@ const ChatInterface = ({ fullPage = false }: ChatInterfaceProps) => {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about products, prices, or reviews..."
+            placeholder={isAuthenticated ? "Ask about products, prices, or reviews..." : "Please log in first..."}
             className="flex-1"
+            disabled={!isAuthenticated}
           />
-          <Button type="submit" variant="hero" size="icon" disabled={!input.trim() || isLoading}>
+          <Button 
+            type="submit" 
+            variant="hero" 
+            size="icon" 
+            disabled={!input.trim() || isLoading || !isAuthenticated}
+            title={!isAuthenticated ? "Please log in first" : "Send message"}
+          >
             <Send className="w-5 h-5" />
           </Button>
         </form>
