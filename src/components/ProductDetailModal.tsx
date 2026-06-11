@@ -29,11 +29,20 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
   }, [product.id]);
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat(product.currency === "USD" ? "en-US" : "en-PK", {
+    // Convert incoming price to PKR for display.
+    const EXCHANGE_RATES: Record<string, number> = {
+      USD: 280, // 1 USD -> 280 PKR (adjust as needed)
+    };
+
+    const from = product.currency || "PKR";
+    const rate = EXCHANGE_RATES[from] ?? (from === "PKR" ? 1 : 1);
+    const amountInPKR = Math.round(price * rate);
+
+    return new Intl.NumberFormat("en-PK", {
       style: "currency",
-      currency: product.currency || "PKR",
+      currency: "PKR",
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(amountInPKR);
   };
 
   const mockReviews = product.reviews?.length ? product.reviews : [

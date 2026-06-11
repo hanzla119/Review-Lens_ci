@@ -64,11 +64,20 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         : "bg-red-50 text-red-700 border-red-200";
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat(product.currency === "USD" ? "en-US" : "en-PK", {
+    // Convert incoming price to PKR for display.
+    const EXCHANGE_RATES: Record<string, number> = {
+      USD: 280, // 1 USD -> 280 PKR (adjust as needed)
+    };
+
+    const from = product.currency || "PKR";
+    const rate = EXCHANGE_RATES[from] ?? (from === "PKR" ? 1 : 1);
+    const amountInPKR = Math.round(price * rate);
+
+    return new Intl.NumberFormat("en-PK", {
       style: "currency",
-      currency: product.currency || "PKR",
+      currency: "PKR",
       minimumFractionDigits: 0,
-    }).format(price);
+    }).format(amountInPKR);
   };
 
   return (

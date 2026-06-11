@@ -123,7 +123,43 @@ const Dashboard = () => {
   }, []);
 
   const categories = useMemo(
-    () => ["All", ...Array.from(new Set(products.map((product) => product.category).filter(Boolean)))],
+    () => {
+      const prettify = (raw?: string) => {
+        if (!raw) return "";
+        const s = raw.toLowerCase();
+        const mapping: Array<[string, string]> = [
+          ["laptop", "Laptop"],
+          ["smartwatch", "Smartwatch"],
+          ["smartphone", "Phone"],
+          ["phone", "Phone"],
+          ["camera", "Camera"],
+          ["remote", "Remote Control"],
+          ["cable", "Cable"],
+          ["charger", "Charger"],
+          ["headphone", "Headphones"],
+          ["printer", "Printer"],
+          ["ink", "Ink"],
+          ["accessories", "Accessories"],
+          ["case", "Case"],
+          ["tablet", "Tablet"],
+        ];
+
+        for (const [k, label] of mapping) {
+          if (s.includes(k)) return label;
+        }
+
+        // Remove trailing numeric ids and replace underscores, then title case
+        const cleaned = raw.replace(/_[0-9]+$/g, "").replace(/_/g, " ").trim();
+        const titled = cleaned.replace(/\b\w/g, (c) => c.toUpperCase());
+        return titled.length > 24 ? `${titled.slice(0, 21)}...` : titled;
+      };
+
+      const values = Array.from(new Set(products.map((product) => product.category).filter(Boolean)));
+      return [
+        { value: "All", label: "All" },
+        ...values.map((v) => ({ value: v, label: prettify(v) })),
+      ];
+    },
     [products],
   );
 
@@ -199,10 +235,10 @@ const Dashboard = () => {
               <div>
                 <Badge variant="secondary" className="mb-4">Review Lens marketplace dashboard</Badge>
                 <h1 className="font-display text-3xl font-bold tracking-tight md:text-5xl">
-                  Dataset-powered products with price, rating, and sentiment clarity.
+                  Products with price, rating, and sentiment clarity.
                 </h1>
                 <p className="mt-4 max-w-3xl text-muted-foreground">
-                  Search products fetched from public e-commerce datasets, filter by category
+                  Search products fetched from public e-commerce websites, filter by category
                   and source, inspect customer sentiment, and open detailed price trends.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -231,7 +267,7 @@ const Dashboard = () => {
 
           <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { icon: Package, label: "Dataset products", value: products.length.toLocaleString(), change: datasetSource },
+              { icon: Package, label: "Products", value: products.length.toLocaleString(), change: datasetSource },
               { icon: Star, label: "Average rating", value: averageRating, change: "Live" },
               { icon: TrendingDown, label: "Discounted products", value: totals.priceDrops.toString(), change: "Now" },
               { icon: ShieldCheck, label: "Reviews analyzed", value: totals.reviews.toLocaleString(), change: "Dataset" },
@@ -295,13 +331,20 @@ const Dashboard = () => {
               <CardContent>
                 <div className="h-40 md:h-36">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={platformData} layout="vertical">
+                    <BarChart
+                      data={platformData}
+                      layout="vertical"
+                      margin={{ left: 120, right: 12, top: 8, bottom: 8 }}
+                    >
                       <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
                       <YAxis
                         dataKey="name"
                         type="category"
+                        width={120}
+                        interval={0}
                         stroke="hsl(var(--muted-foreground))"
                         tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                        tickLine={false}
                       />
                       <Tooltip
                         contentStyle={{
@@ -350,11 +393,11 @@ const Dashboard = () => {
                         <div className="space-y-1 max-h-40 overflow-y-auto">
                           {categories.map((category) => (
                             <DropdownMenuCheckboxItem
-                              key={category}
-                              checked={selectedCategory === category}
-                              onCheckedChange={() => setSelectedCategory(category)}
+                              key={category.value}
+                              checked={selectedCategory === category.value}
+                              onCheckedChange={() => setSelectedCategory(category.value)}
                             >
-                              {category}
+                              {category.label}
                             </DropdownMenuCheckboxItem>
                           ))}
                         </div>
