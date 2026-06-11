@@ -153,9 +153,23 @@ def generate_price_history(current_price: float, original_price: float) -> list[
     ]
 
 
+FALLBACK_IMAGE_POOL = [
+    "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900",
+    "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=900",
+    "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=900",
+    "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=900",
+    "https://images.unsplash.com/photo-1517059224940-d4af9eec41e5?w=900",
+    "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=900",
+    "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=900",
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900",
+    "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=900",
+    "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=900",
+]
+
+
 def fallback_image(seed: str) -> str:
     digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest()[:8], 16)
-    return f"https://images.unsplash.com/photo-1498049794561-7780e7231661?w=900&sig={1000 + (digest % 900000)}"
+    return FALLBACK_IMAGE_POOL[digest % len(FALLBACK_IMAGE_POOL)]
 
 
 def review_timestamp(index: int) -> str:

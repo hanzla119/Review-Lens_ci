@@ -31,6 +31,8 @@ import { mockProducts, type Product } from "@/data/mockData";
 import { productsApi } from "@/lib/productsApi";
 
 const DASHBOARD_PRODUCT_LIMIT = 10000;
+const INITIAL_VISIBLE_PRODUCTS = 80;
+const PRODUCTS_PER_BATCH = 80;
 
 const ProductGridSkeleton = () => (
   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-4">
@@ -94,6 +96,7 @@ const Dashboard = () => {
   const [datasetSource, setDatasetSource] = useState("local-demo-products");
   const [productError, setProductError] = useState("");
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [visibleProductsCount, setVisibleProductsCount] = useState(INITIAL_VISIBLE_PRODUCTS);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -129,12 +132,25 @@ const Dashboard = () => {
     [products],
   );
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
-    const matchesPlatform = !selectedPlatform || product.platform === selectedPlatform;
-    return matchesSearch && matchesCategory && matchesPlatform;
-  });
+  const filteredProducts = useMemo(
+    () =>
+      products.filter((product) => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
+        const matchesPlatform = !selectedPlatform || product.platform === selectedPlatform;
+        return matchesSearch && matchesCategory && matchesPlatform;
+      }),
+    [products, searchQuery, selectedCategory, selectedPlatform],
+  );
+
+  useEffect(() => {
+    setVisibleProductsCount(INITIAL_VISIBLE_PRODUCTS);
+  }, [searchQuery, selectedCategory, selectedPlatform, products.length]);
+
+  const visibleProducts = useMemo(
+    () => filteredProducts.slice(0, visibleProductsCount),
+    [filteredProducts, visibleProductsCount],
+  );
 
   const totals = products.reduce(
     (acc, product) => {
@@ -159,29 +175,6 @@ const Dashboard = () => {
     name: platform,
     products: products.filter((product) => product.platform === platform).length,
   }));
-
-  const topCategory =
-    categories
-      .filter((category) => category !== "All")
-      .map((category) => ({
-        category,
-        count: products.filter((product) => product.category === category).length,
-      }))
-      .sort((a, b) => b.count - a.count)[0]?.category || "Electronics";
-
-  const bestSentimentCategory =
-    categories
-      .filter((category) => category !== "All")
-      .map((category) => {
-        const categoryProducts = products.filter((product) => product.category === category);
-        return {
-          category,
-          score:
-            categoryProducts.reduce((sum, product) => sum + product.sentiment.positive, 0) /
-            Math.max(categoryProducts.length, 1),
-        };
-      })
-      .sort((a, b) => b.score - a.score)[0]?.category || "Electronics";
 
   const averageRating = products.length ? (totals.rating / products.length).toFixed(1) : "0.0";
 
@@ -427,15 +420,32 @@ const Dashboard = () => {
             {isLoadingProducts ? (
               <ProductGridSkeleton />
             ) : filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-4">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onClick={() => setSelectedProduct(product)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 xl:gap-4">
+                  {visibleProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onClick={() => setSelectedProduct(product)}
+                    />
+                  ))}
+                </div>
+                {visibleProducts.length < filteredProducts.length && (
+                  <div className="mt-4 flex justify-center">
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        setVisibleProductsCount((current) =>
+                          Math.min(current + PRODUCTS_PER_BATCH, filteredProducts.length),
+                        )
+                      }
+                    >
+                      Load more products ({visibleProducts.length.toLocaleString()} /{" "}
+                      {filteredProducts.length.toLocaleString()})
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <EmptyProductsState onReset={resetFilters} />
             )}

@@ -57,6 +57,9 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
         <img
           src={product.image}
           alt={product.name}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-2">
