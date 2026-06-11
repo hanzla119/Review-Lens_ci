@@ -26,6 +26,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable
+from urllib.parse import quote_plus
 
 import kagglehub
 import requests
@@ -116,7 +117,7 @@ def parse_urls(value: str | None) -> list[str]:
         except json.JSONDecodeError:
             pass
 
-    urls = re.findall(r"https?://[^\s|]+", text)
+    urls = re.findall(r"https?://[^\s|,]+", text)
     return [url.strip() for url in urls]
 
 
@@ -453,7 +454,7 @@ def extract_flipkart_products(limit: int) -> list[dict]:
                     category=category_from_text(title),
                     description=f"Flipkart product review record imported from dataset listing: {title}",
                     images=[],
-                    product_url=f"{FLIPKART_SOURCE_URL}#record-{row_index}",
+                    product_url=f"https://www.flipkart.com/search?q={quote_plus(title[:120])}",
                     current_price=current_price,
                     original_price=current_price * 1.1,
                     currency="INR",

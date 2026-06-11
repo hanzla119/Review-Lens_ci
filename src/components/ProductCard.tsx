@@ -9,11 +9,20 @@ interface ProductCardProps {
   onClick?: () => void;
 }
 
+const buildProductPagePreview = (productUrl?: string) => {
+  if (!productUrl || !productUrl.startsWith("http")) {
+    return "/placeholder.svg";
+  }
+
+  return `https://image.thum.io/get/width/900/noanimate/${productUrl}`;
+};
+
 const ProductCard = ({ product, onClick }: ProductCardProps) => {
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
-  const productImage = product.image || "/placeholder.svg";
+  const hasActualImage = Boolean(product.image && product.image !== "/placeholder.svg");
+  const productImage = hasActualImage ? (product.image as string) : buildProductPagePreview(product.productUrl);
 
   const platformStyles: Record<string, string> = {
     Amazon: "bg-orange-50 text-orange-700 border-orange-200",
