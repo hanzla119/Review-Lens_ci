@@ -9,10 +9,41 @@ interface ProductCardProps {
   onClick?: () => void;
 }
 
+const fallbackImagePool = [
+  "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=900",
+  "https://images.unsplash.com/photo-1541807084-5c52b6b3adef?w=900",
+  "https://images.unsplash.com/photo-1588508065123-287b28e013da?w=900",
+  "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=900",
+  "https://images.unsplash.com/photo-1517059224940-d4af9eec41e5?w=900",
+  "https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=900",
+  "https://images.unsplash.com/photo-1484704849700-f032a568e944?w=900",
+  "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900",
+  "https://images.unsplash.com/photo-1583394838336-acd977736f90?w=900",
+  "https://images.unsplash.com/photo-1572569511254-d8f925fe2cbb?w=900",
+];
+
+const hashSeed = (value = "") =>
+  value
+    .split("")
+    .reduce((hash, char) => ((hash << 5) - hash + char.charCodeAt(0)) | 0, 0);
+
+const pickFallbackImage = (seed: string) => {
+  const index = Math.abs(hashSeed(seed)) % fallbackImagePool.length;
+  return fallbackImagePool[index];
+};
+
+const isRepeatedPlaceholderImage = (image = "") =>
+  image.includes("example.com") ||
+  image.includes("photo-1498049794561-7780e7231661") ||
+  image.includes("photo-1505740420928-5e560c06d30e") ||
+  image.includes("photo-1610945265064-0e34e5519bbf");
+
 const ProductCard = ({ product, onClick }: ProductCardProps) => {
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+  const fallbackImage = pickFallbackImage(product.id || product.name);
+  const productImage = isRepeatedPlaceholderImage(product.image) ? fallbackImage : product.image;
 
   const platformStyles: Record<string, string> = {
     Amazon: "bg-orange-50 text-orange-700 border-orange-200",
@@ -55,11 +86,15 @@ const ProductCard = ({ product, onClick }: ProductCardProps) => {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
-          src={product.image}
+          src={productImage}
           alt={product.name}
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = fallbackImage;
+          }}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
         />
         <div className="absolute left-3 top-3 flex max-w-[calc(100%-1.5rem)] flex-wrap gap-2">
