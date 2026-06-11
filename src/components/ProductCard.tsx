@@ -9,20 +9,34 @@ interface ProductCardProps {
   onClick?: () => void;
 }
 
-const buildProductPagePreview = (productUrl?: string) => {
-  if (!productUrl || !productUrl.startsWith("http")) {
-    return "/placeholder.svg";
-  }
-
-  return `https://image.thum.io/get/width/900/noanimate/${productUrl}`;
+const buildMissingImageCard = (product: Product) => {
+  const platform = (product.platform || "Marketplace").slice(0, 24);
+  const title = (product.name || "Product").slice(0, 42);
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="675" viewBox="0 0 900 675">
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#eef2ff"/>
+          <stop offset="100%" stop-color="#e2e8f0"/>
+        </linearGradient>
+      </defs>
+      <rect width="900" height="675" fill="url(#bg)"/>
+      <rect x="50" y="70" width="220" height="54" rx="27" fill="#ffffff" stroke="#cbd5e1"/>
+      <text x="160" y="104" text-anchor="middle" font-size="26" fill="#334155" font-family="Arial, sans-serif">${platform}</text>
+      <text x="450" y="315" text-anchor="middle" font-size="38" fill="#0f172a" font-family="Arial, sans-serif">Image unavailable from source</text>
+      <text x="450" y="370" text-anchor="middle" font-size="28" fill="#475569" font-family="Arial, sans-serif">${title}</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 };
 
 const ProductCard = ({ product, onClick }: ProductCardProps) => {
   const discount = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
-  const hasActualImage = Boolean(product.image && product.image !== "/placeholder.svg");
-  const productImage = hasActualImage ? (product.image as string) : buildProductPagePreview(product.productUrl);
+  const productImage = product.image && product.image !== "/placeholder.svg"
+    ? product.image
+    : buildMissingImageCard(product);
 
   const platformStyles: Record<string, string> = {
     Amazon: "bg-orange-50 text-orange-700 border-orange-200",

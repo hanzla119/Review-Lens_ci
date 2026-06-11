@@ -139,6 +139,10 @@ const Dashboard = () => {
         const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
         const matchesPlatform = !selectedPlatform || product.platform === selectedPlatform;
         return matchesSearch && matchesCategory && matchesPlatform;
+      }).sort((a, b) => {
+        const aHasImage = a.image && a.image !== "/placeholder.svg" ? 1 : 0;
+        const bHasImage = b.image && b.image !== "/placeholder.svg" ? 1 : 0;
+        return bHasImage - aHasImage;
       }),
     [products, searchQuery, selectedCategory, selectedPlatform],
   );
