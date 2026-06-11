@@ -200,7 +200,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
 
           {product.specifications && Object.keys(product.specifications).length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold font-display mb-4">Dataset Specifications</h3>
+              <h3 className="text-lg font-semibold font-display mb-4">Specifications</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {Object.entries(product.specifications).slice(0, 6).map(([key, value]) => (
                   <div key={key} className="rounded-2xl border border-border bg-muted/40 p-4">
@@ -224,7 +224,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               {mockReviews.map((review, index) => (
                 <div key={`${review.author}-${index}`} className="rounded-2xl border border-border bg-white p-4 shadow-sm">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{review.author}</span>
+                    <span className="font-medium">{review.author === "dataset_user" ? "User" : review.author}</span>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <Star
@@ -251,7 +251,7 @@ const ProductDetailModal = ({ product, onClose }: ProductDetailModalProps) => {
               <Button variant="hero" size="lg" className="flex-1" asChild>
                 <a href={product.productUrl} target="_blank" rel="noreferrer">
                   <ExternalLink className="w-5 h-5 mr-2" />
-                  Open Dataset Product
+                  Open Product
                 </a>
               </Button>
             ) : (
