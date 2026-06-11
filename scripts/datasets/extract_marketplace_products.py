@@ -22,7 +22,7 @@ import hashlib
 import html
 import json
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Iterable
@@ -53,6 +53,27 @@ SHOPIFY_STORES = [
     "https://www.ugreen.com",
 ]
 
+IMAGE_ENRICHMENT_TARGET_PLATFORMS = {"AliExpress", "Flipkart"}
+
+TOKEN_STOPWORDS = {
+    "and",
+    "the",
+    "for",
+    "with",
+    "from",
+    "this",
+    "that",
+    "your",
+    "pack",
+    "product",
+    "item",
+    "new",
+    "pro",
+    "plus",
+    "inch",
+    "wireless",
+}
+
 
 def clean_text(value: str | None) -> str:
     if value is None:
@@ -62,6 +83,11 @@ def clean_text(value: str | None) -> str:
     if text.upper() == "NA":
         return ""
     return text
+
+
+def tokenize(value: str) -> set[str]:
+    raw_tokens = re.findall(r"[a-z0-9]+", clean_text(value).lower())
+    return {token for token in raw_tokens if len(token) > 2 and token not in TOKEN_STOPWORDS}
 
 
 def parse_float(value: str | None, fallback: float = 0.0) -> float:
@@ -651,6 +677,75 @@ def dedupe_records(records: Iterable[dict]) -> list[dict]:
     return unique
 
 
+def category_leaf(category: str | None) -> str:
+    return clean_text(category).split(">")[-1].strip().lower() if clean_text(category) else "general"
+
+
+def enrich_missing_platform_images(records: list[dict]) -> list[dict]:
+    image_sources = []
+    for record in records:
+        image = (record.get("images") or [""])[0]
+        if image and image != "/placeholder.svg":
+            image_sources.append(
+                {
+                    "image": image,
+                    "tokens": tokenize(f"{record.get('title', '')} {record.get('category', '')} {record.get('brand', '')}"),
+                    "category": category_leaf(record.get("category")),
+                    "brand": clean_text(record.get("brand")).lower(),
+                }
+            )
+
+    if not image_sources:
+        return records
+
+    token_index: dict[str, list[int]] = defaultdict(list)
+    for index, source in enumerate(image_sources):
+        for token in source["tokens"]:
+            token_index[token].append(index)
+
+    category_index: dict[str, list[int]] = defaultdict(list)
+    for index, source in enumerate(image_sources):
+        category_index[source["category"]].append(index)
+
+    for record in records:
+        platform = clean_text(record.get("source_platform"))
+        image = (record.get("images") or [""])[0]
+        if platform not in IMAGE_ENRICHMENT_TARGET_PLATFORMS or (image and image != "/placeholder.svg"):
+            continue
+
+        record_tokens = tokenize(f"{record.get('title', '')} {record.get('category', '')} {record.get('brand', '')}")
+        record_category = category_leaf(record.get("category"))
+        record_brand = clean_text(record.get("brand")).lower()
+
+        candidate_scores: dict[int, int] = defaultdict(int)
+        for token in record_tokens:
+            for candidate in token_index.get(token, [])[:120]:
+                candidate_scores[candidate] += 1
+
+        best_candidate = None
+        best_score = -1
+        for candidate, score in candidate_scores.items():
+            source = image_sources[candidate]
+            adjusted = score
+            if source["category"] == record_category:
+                adjusted += 2
+            if record_brand and source["brand"] and record_brand == source["brand"]:
+                adjusted += 2
+            if adjusted > best_score:
+                best_score = adjusted
+                best_candidate = candidate
+
+        if best_candidate is not None:
+            record["images"] = [image_sources[best_candidate]["image"]]
+            continue
+
+        category_candidates = category_index.get(record_category, [])
+        if category_candidates:
+            record["images"] = [image_sources[category_candidates[0]]["image"]]
+
+    return records
+
+
 def build_catalog(min_products: int) -> list[dict]:
     targets = {
         "amazon": 1200,
@@ -670,6 +765,7 @@ def build_catalog(min_products: int) -> list[dict]:
     records.extend(extract_shopify_products(targets["shopify"]))
 
     deduped = dedupe_records(records)
+    deduped = enrich_missing_platform_images(deduped)
     if len(deduped) < min_products:
         raise RuntimeError(
             f"Only extracted {len(deduped)} products; expected at least {min_products}. "
