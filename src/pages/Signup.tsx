@@ -32,7 +32,6 @@ const Signup = () => {
   });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [developmentOtp, setDevelopmentOtp] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -56,7 +55,6 @@ const Signup = () => {
     event.preventDefault();
     setError("");
     setMessage("");
-    setDevelopmentOtp("");
 
     const validationError = validateDetails();
     if (validationError) {
@@ -68,7 +66,6 @@ const Signup = () => {
     try {
       const response = await authApi.sendOtp(form.email);
       setMessage(response.message);
-      setDevelopmentOtp(response.developmentOtp || "");
       setStep("otp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send verification code.");
@@ -153,9 +150,6 @@ const Signup = () => {
                   <CheckCircle2 className="mt-0.5 h-4 w-4" />
                   <div>
                     <p>{message}</p>
-                    {developmentOtp && (
-                      <p className="mt-1 font-semibold">Development OTP: {developmentOtp}</p>
-                    )}
                   </div>
                 </div>
               )}
