@@ -1,5 +1,4 @@
 import { authStorage } from "@/lib/authApi";
-import type { Product } from "@/data/mockData";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -28,22 +27,14 @@ export interface ChatHistoryItem {
   _id: string;
   role: "user" | "assistant";
   content: string;
-  products?: Product[];
-  createdAt: string;
-}
-
-interface ChatMessagePayload {
-  _id: string;
-  role: "user" | "assistant";
-  content: string;
-  products?: Product[];
+  products?: unknown[]; // Changed from any[] to unknown[]
   createdAt: string;
 }
 
 export const chatApi = {
   getHistory: () => request<{ history: ChatHistoryItem[] }>("/chatbot/history"),
   sendMessage: (message: string) =>
-    request<{ message: ChatMessagePayload }>(
+    request<{ message: { _id: string; role: "user" | "assistant"; content: string; products?: unknown[]; createdAt: string } }>(
       "/chatbot",
       {
         method: "POST",
