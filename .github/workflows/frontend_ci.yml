@@ -49,7 +49,7 @@ jobs:
         run: npm run lint
 
       - name: Run Frontend Tests
-        run: npx vitest run "src/tests/**/*.test.ts"
+        run: npx vitest run src/tests
 
       - name: Build Application
         run: npm run build
